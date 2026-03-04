@@ -884,7 +884,6 @@
         </div>
         <div style="display:flex; gap:12px; align-items:center;">
           <a href="/setup-guide" class="admin-link" target="_blank" style="font-size:0.75rem;">Help</a>
-          <a id="adminLink" href="#" class="admin-link">Admin Settings</a>
         </div>
       </div>
 
@@ -947,6 +946,22 @@
     <div class="footer-inner">
       <p id="orgFooter"></p>
       <p>Powered by SMART Health Links</p>
+      <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.15);">
+        <a href="#" id="adminFooterLink" onclick="showAdminPasswordPrompt(event)" style="color: rgba(255,255,255,0.5); font-size: 0.75rem; text-decoration: none;">Admin Settings</a>
+      </div>
+      <!-- Admin password modal -->
+      <div id="adminPasswordModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; display:none; align-items:center; justify-content:center;">
+        <div style="background:var(--white); border-radius:8px; padding:28px 24px; max-width:380px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,0.2);">
+          <h3 style="font-family:'Instrument Serif',Georgia,serif; font-size:1.25rem; color:var(--cms-blue-darkest); margin-bottom:4px;">Admin Settings</h3>
+          <p style="font-size:0.85rem; color:var(--gray-mid); margin-bottom:16px;">Enter the admin password to access settings.</p>
+          <div id="adminModalError" style="display:none; padding:8px 12px; background:var(--color-error-light); border-left:3px solid var(--color-error); border-radius:4px; margin-bottom:12px; font-size:0.8rem; color:#8b0000;"></div>
+          <input type="password" id="adminModalPassword" placeholder="Admin password" autocomplete="off" style="width:100%; padding:10px 12px; border:2px solid var(--gray-lighter); border-radius:4px; font-size:1rem; font-family:'Inter',sans-serif; color:var(--gray-dark); margin-bottom:12px; box-sizing:border-box;">
+          <div style="display:flex; gap:8px;">
+            <button onclick="submitAdminPassword()" class="primary" style="flex:1;">Sign In</button>
+            <button onclick="hideAdminPasswordPrompt()" style="flex:none; padding:10px 16px;">Cancel</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -982,7 +997,6 @@
 
         // Set up admin links
         document.getElementById('adminSettingsLink').href = `/${slug}/admin`;
-        document.getElementById('adminLink').href = `/${slug}/admin`;
 
         // Check for existing token
         token = sessionStorage.getItem('ktc_token_' + slug);
@@ -1606,6 +1620,61 @@
       document.getElementById('passcodeForm').classList.remove('visible');
       document.getElementById('passcodeInput').value = '';
       document.getElementById('status').className = 'status';
+    }
+
+    // === Admin Password Prompt ===
+    function showAdminPasswordPrompt(e) {
+      e.preventDefault();
+      const modal = document.getElementById('adminPasswordModal');
+      modal.style.display = 'flex';
+      document.getElementById('adminModalPassword').value = '';
+      document.getElementById('adminModalError').style.display = 'none';
+      setTimeout(() => document.getElementById('adminModalPassword').focus(), 100);
+
+      // Allow Enter key
+      document.getElementById('adminModalPassword').onkeydown = function(ev) {
+        if (ev.key === 'Enter') submitAdminPassword();
+      };
+
+      // Close on backdrop click
+      modal.onclick = function(ev) {
+        if (ev.target === modal) hideAdminPasswordPrompt();
+      };
+    }
+
+    function hideAdminPasswordPrompt() {
+      document.getElementById('adminPasswordModal').style.display = 'none';
+    }
+
+    async function submitAdminPassword() {
+      const password = document.getElementById('adminModalPassword').value.trim();
+      if (!password) return;
+
+      const errorEl = document.getElementById('adminModalError');
+      errorEl.style.display = 'none';
+
+      try {
+        const resp = await fetch('/api/orgs/' + slug + '/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: password, role: 'admin' }),
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          errorEl.textContent = data.error || 'Invalid admin password';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        // Store admin token using the admin page's key so it picks it up
+        sessionStorage.setItem('ktc_token_' + slug, data.token);
+        window.location.href = '/' + slug + '/admin';
+      } catch (err) {
+        errorEl.textContent = 'Connection error. Please try again.';
+        errorEl.style.display = 'block';
+      }
     }
   </script>
 </body>

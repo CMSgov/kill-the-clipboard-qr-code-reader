@@ -487,7 +487,8 @@ app.post('/api/orgs/:slug/auth', async (req, res) => {
 
   if (!valid) return res.status(401).json({ error: 'Invalid password.' });
 
-  const token = createToken({ slug: org.slug, role, orgId: org.id });
+  const timeoutMinutes = org.session_timeout_minutes || 720;
+  const token = createToken({ slug: org.slug, role, orgId: org.id, timeoutMinutes });
   res.json({ token, role, slug: org.slug, orgName: org.name });
 });
 
@@ -509,6 +510,7 @@ app.get('/api/orgs/:slug/config', (req, res) => {
     hasGmail: !!org.gmail_refresh_token,
     hasOutlook: !!org.outlook_refresh_token,
     requireAppValidation: !!org.require_app_validation,
+    sessionTimeoutMinutes: org.session_timeout_minutes || 720,
   });
 });
 
@@ -536,6 +538,7 @@ app.get('/api/orgs/:slug/settings', authMiddleware('admin'), (req, res) => {
     hasOutlookToken: !!org.outlook_refresh_token,
     outlookEmail: org.outlook_email || null,
     requireAppValidation: !!org.require_app_validation,
+    sessionTimeoutMinutes: org.session_timeout_minutes || 720,
   });
 });
 
@@ -544,7 +547,7 @@ app.put('/api/orgs/:slug/settings', authMiddleware('admin'), (req, res) => {
   const org = getOrgBySlug(req.params.slug);
   if (!org) return res.status(404).json({ error: 'Organization not found.' });
 
-  const { storageType, saveFormat, driveFolderId, apiUrl, apiHeaders, emailTo, onedriveFolderPath, boxFolderId, requireAppValidation } = req.body;
+  const { storageType, saveFormat, driveFolderId, apiUrl, apiHeaders, emailTo, onedriveFolderPath, boxFolderId, requireAppValidation, sessionTimeoutMinutes } = req.body;
   const updates = {};
 
   if (storageType && ['download', 'drive', 'onedrive', 'box', 'api', 'email', 'gmail', 'outlook'].includes(storageType)) {
@@ -560,6 +563,11 @@ app.put('/api/orgs/:slug/settings', authMiddleware('admin'), (req, res) => {
   if (apiHeaders !== undefined) updates.api_headers = JSON.stringify(apiHeaders);
   if (emailTo !== undefined) updates.email_to = emailTo;
   if (requireAppValidation !== undefined) updates.require_app_validation = requireAppValidation ? 1 : 0;
+  if (sessionTimeoutMinutes !== undefined) {
+    const validTimeouts = [60, 240, 480, 720, 1440];
+    const val = parseInt(sessionTimeoutMinutes);
+    if (validTimeouts.includes(val)) updates.session_timeout_minutes = val;
+  }
 
   updateOrgSettings(org.id, updates);
   res.json({ ok: true });

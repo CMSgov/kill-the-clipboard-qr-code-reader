@@ -82,6 +82,7 @@ function migrate(db) {
     `ALTER TABLE organizations ADD COLUMN outlook_refresh_token TEXT`,
     `ALTER TABLE organizations ADD COLUMN outlook_email TEXT`,
     `ALTER TABLE organizations ADD COLUMN require_app_validation INT DEFAULT 0`,
+    `ALTER TABLE organizations ADD COLUMN session_timeout_minutes INT DEFAULT 720`,
   ];
 
   for (const sql of migrations) {
@@ -140,6 +141,7 @@ export function updateOrgSettings(id, fields) {
     'email_to',
     'admin_password_hash', 'staff_password_hash',
     'require_app_validation',
+    'session_timeout_minutes',
   ];
 
   const sets = [];

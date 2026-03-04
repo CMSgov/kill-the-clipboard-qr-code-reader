@@ -673,6 +673,25 @@
       </div>
     </div>
 
+    <!-- ===== SESSION TIMEOUT ===== -->
+    <div class="card">
+      <div class="card-header">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--cms-blue)"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+        Session Timeout
+      </div>
+      <div class="card-body">
+        <p style="font-size: 0.875rem; color: var(--gray-mid); margin-bottom: 16px;">How long staff and admin sessions stay active before requiring a password again.</p>
+        <select id="sessionTimeout" onchange="selectSessionTimeout(this.value)" style="width: 100%; padding: 10px 12px; border: 2px solid var(--gray-lighter); border-radius: 4px; font-size: 0.95rem; font-family: 'Inter', sans-serif; color: var(--gray-dark); background: var(--white); cursor: pointer;">
+          <option value="60">1 hour</option>
+          <option value="240">4 hours</option>
+          <option value="480">8 hours (one shift)</option>
+          <option value="720" selected>12 hours (default)</option>
+          <option value="1440">24 hours</option>
+        </select>
+        <p style="font-size: 0.78rem; color: var(--gray-light); margin-top: 8px;">Shorter timeouts are more secure. Staff will need to re-enter their password after this period.</p>
+      </div>
+    </div>
+
     <!-- ===== STORAGE DESTINATION ===== -->
     <div class="card">
       <div class="card-header">
@@ -1021,6 +1040,9 @@
         // App validation
         selectAppValidation(!!data.requireAppValidation);
 
+        // Session timeout
+        selectSessionTimeout(data.sessionTimeoutMinutes || 720);
+
         // Storage type
         const storageType = data.storageType || 'download';
         selectStorage(storageType);
@@ -1145,6 +1167,10 @@
       });
     }
 
+    function selectSessionTimeout(value) {
+      document.getElementById('sessionTimeout').value = value;
+    }
+
     // ============================
     // Google Drive connect
     // ============================
@@ -1201,11 +1227,13 @@
       }
 
       const appValidation = document.querySelector('input[name="appValidation"]:checked').value === 'yes';
+      const sessionTimeout = parseInt(document.getElementById('sessionTimeout').value);
 
       const body = {
         storageType: storageType,
         saveFormat: saveFormat,
         requireAppValidation: appValidation,
+        sessionTimeoutMinutes: sessionTimeout,
         driveFolderUrl: document.getElementById('driveFolderUrl').value.trim(),
         onedriveFolderPath: document.getElementById('onedriveFolderPath').value.trim(),
         boxFolderId: document.getElementById('boxFolderId').value.trim(),

@@ -35,8 +35,8 @@ export async function verifyPassword(plaintext, hash) {
  * @param {{ slug: string, role: 'admin'|'staff', orgId: string }} payload
  * @returns {string} base64url-encoded token
  */
-export function createToken({ slug, role, orgId }) {
-  const expiresIn = role === 'admin' ? 24 * 60 * 60 : 12 * 60 * 60; // 24h admin, 12h staff
+export function createToken({ slug, role, orgId, timeoutMinutes }) {
+  const expiresIn = timeoutMinutes ? timeoutMinutes * 60 : 12 * 60 * 60; // default 12h
   const payload = {
     slug,
     role,
