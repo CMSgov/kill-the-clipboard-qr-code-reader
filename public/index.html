@@ -453,7 +453,18 @@
       margin-right: 8px;
     }
 
-    .file-upload { display: none; }
+    /* === INFO NOTE === */
+    .info-note {
+      background: var(--cms-blue-lightest);
+      border: 1px solid var(--cms-blue-light);
+      border-left: 4px solid var(--cms-blue);
+      border-radius: 4px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      font-size: 0.85rem;
+      color: var(--cms-blue-darkest);
+      line-height: 1.5;
+    }
 
     /* === FOOTER === */
     .site-footer {
@@ -504,8 +515,8 @@
   <hr class="gold-rule">
 
   <div class="hero">
-    <h2>Scan Your Health Records</h2>
-    <p>Point your camera at a SMART Health Link QR code to securely import your health data.</p>
+    <h2>Scan the Patient's QR Code</h2>
+    <p>Point your camera at a SMART Health Link QR code to securely import the patient's health data.</p>
   </div>
 
   <div class="container">
@@ -526,10 +537,12 @@
     </div>
 
     <div class="controls">
-      <button id="startBtn" class="primary" onclick="startScanner()">Start Camera</button>
-      <button id="stopBtn" onclick="stopScanner()" disabled>Stop Camera</button>
-      <button id="uploadBtn" onclick="document.getElementById('fileInput').click()">Upload Image</button>
-      <input type="file" id="fileInput" class="file-upload" accept="image/*" onchange="handleFileUpload(event)">
+      <button id="startBtn" class="primary" onclick="startScanner()">Start Scan</button>
+      <button id="stopBtn" onclick="stopScanner()" disabled>Stop Scan</button>
+    </div>
+
+    <div class="info-note">
+      Only valid <strong>SMART Health Link</strong> QR codes will be recognized. Once scanned, the patient's health data will automatically be sent to the destination configured by your administrator.
     </div>
 
     <div id="status" class="status"></div>
@@ -650,26 +663,6 @@
       document.getElementById('startBtn').disabled = false;
       document.getElementById('stopBtn').disabled = true;
       setStatus('info', 'Camera stopped.');
-    }
-
-    function handleFileUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      clearResults();
-      setStatus('info', `Scanning ${file.name}...`);
-
-      const tempScanner = new Html5Qrcode('reader');
-      tempScanner.scanFile(file, true)
-        .then(text => {
-          setStatus('info', 'QR code found. Processing...');
-          onScanSuccess(text);
-        })
-        .catch(() => {
-          setStatus('warning', 'No QR code found in that image.');
-        });
-
-      event.target.value = '';
     }
 
     async function onScanSuccess(decodedText) {

@@ -30,7 +30,7 @@ const config = loadConfig();
 const PORT = process.env.PORT || config.server?.port || 3000;
 const HOST = process.env.HOST || config.server?.host || '0.0.0.0';
 
-const RESERVED_SLUGS = ['register', 'admin', 'api', 'auth', 'public', 'static', 'assets', 'health', 'index.html', 'privacy', 'terms', 'super-admin'];
+const RESERVED_SLUGS = ['register', 'admin', 'api', 'auth', 'public', 'static', 'assets', 'health', 'index.html', 'privacy', 'terms', 'super-admin', 'setup-guide'];
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -54,6 +54,10 @@ app.get('/terms', (req, res) => {
 
 app.get('/super-admin', (req, res) => {
   res.sendFile(join(__dirname, 'public', 'super-admin.html'));
+});
+
+app.get('/setup-guide', (req, res) => {
+  res.sendFile(join(__dirname, 'public', 'setup-guide.html'));
 });
 
 // Static files (CSS, JS, fonts, images — but NOT index.html as the default for /)

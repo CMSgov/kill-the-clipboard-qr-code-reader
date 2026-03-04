@@ -580,8 +580,16 @@
 
   <!-- ==================== SETTINGS SECTION ==================== -->
   <div id="settingsSection" class="container" style="display: none;">
-    <h1 class="page-heading">Admin Settings</h1>
-    <p class="page-subheading">Manage your organization's scanner configuration and storage destination.</p>
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <div>
+        <h1 class="page-heading" style="margin-bottom:4px;">Admin Settings</h1>
+        <p class="page-subheading">Manage your organization's scanner configuration and storage destination.</p>
+      </div>
+      <a href="/setup-guide" style="display:inline-flex; align-items:center; gap:6px; padding:8px 16px; background:var(--cms-blue-lightest); border:1px solid var(--cms-blue-light); border-radius:4px; color:var(--cms-blue-darkest); font-size:0.85rem; font-weight:600; text-decoration:none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--cms-blue)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/></svg>
+        Setup Guide
+      </a>
+    </div>
 
     <div id="settingsStatus" class="status"></div>
 
