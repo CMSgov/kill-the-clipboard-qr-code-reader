@@ -672,11 +672,6 @@
             <div class="radio-card-title">API / Webhook</div>
             <div class="radio-card-desc">POST scan results to a URL endpoint.</div>
           </label>
-          <label class="radio-card" onclick="selectStorage('email')">
-            <input type="radio" name="storageType" value="email">
-            <div class="radio-card-title">Email (SMTP)</div>
-            <div class="radio-card-desc">Email via system SMTP server.</div>
-          </label>
           <label class="radio-card" onclick="selectStorage('gmail')">
             <input type="radio" name="storageType" value="gmail">
             <div class="radio-card-title">Gmail</div>
@@ -755,18 +750,6 @@
           </div>
         </div>
 
-        <!-- Email Config Panel -->
-        <div id="panel-email" class="config-panel">
-          <div class="config-panel-title">Email Configuration</div>
-          <div class="form-group">
-            <label for="emailTo">Recipient Email</label>
-            <input type="email" id="emailTo" placeholder="records@clinic.example.com" required>
-            <div class="help-text">Scan results will be sent to this email with PDFs and FHIR data attached.</div>
-          </div>
-          <div class="help-text" style="margin-top: 4px; padding: 10px 12px; background: var(--color-warn-light); border-left: 3px solid var(--cms-gold-dark); border-radius: 4px;">
-            Note: Email requires SMTP configuration by the system administrator.
-          </div>
-        </div>
 
         <!-- Gmail Config Panel -->
         <div id="panel-gmail" class="config-panel">
@@ -1053,7 +1036,6 @@
         if (data.apiUrl) document.getElementById('apiUrl').value = data.apiUrl;
         if (data.apiHeaders) document.getElementById('apiHeaders').value = typeof data.apiHeaders === 'string' ? data.apiHeaders : JSON.stringify(data.apiHeaders, null, 2);
         if (data.emailTo) {
-          document.getElementById('emailTo').value = data.emailTo;
           document.getElementById('gmailEmailTo').value = data.emailTo;
           document.getElementById('outlookEmailTo').value = data.emailTo;
         }
@@ -1164,8 +1146,6 @@
         emailTo = document.getElementById('gmailEmailTo').value.trim();
       } else if (storageType === 'outlook') {
         emailTo = document.getElementById('outlookEmailTo').value.trim();
-      } else {
-        emailTo = document.getElementById('emailTo').value.trim();
       }
 
       const body = {
