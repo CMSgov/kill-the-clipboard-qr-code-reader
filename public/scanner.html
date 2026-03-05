@@ -1135,33 +1135,42 @@
 
       const scanConfig = { fps: 10, qrbox: { width: 250, height: 250 } };
 
-      try {
-        // Try rear camera first (phones/tablets)
-        await scanner.start(
-          { facingMode: 'environment' },
-          scanConfig,
-          onScanSuccess,
-          () => {}
-        );
+      // Try strategies in order: rear camera → front camera → first available device
+      const strategies = [
+        { config: { facingMode: 'environment' }, label: 'Camera active. Point at a SMART Health Link QR code.' },
+        { config: { facingMode: 'user' }, label: 'Camera active (front camera). Point at a SMART Health Link QR code.' },
+      ];
 
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
-        setStatus('info', 'Camera active. Point at a SMART Health Link QR code.');
-      } catch (envErr) {
-        // Fallback: use any available camera (laptops, desktops)
+      let started = false;
+      for (const strategy of strategies) {
         try {
-          await scanner.start(
-            { facingMode: 'user' },
-            scanConfig,
-            onScanSuccess,
-            () => {}
-          );
+          await scanner.start(strategy.config, scanConfig, onScanSuccess, () => {});
           startBtn.disabled = true;
           stopBtn.disabled = false;
-          setStatus('info', 'Camera active (front camera). Point at a SMART Health Link QR code.');
-        } catch (err) {
-          setStatus('error', `Camera error: ${escapeHtml(err.message || err)}`);
+          setStatus('info', strategy.label);
+          started = true;
+          break;
+        } catch {
+          // Try next strategy
         }
+      }
+
+      // Last resort: enumerate cameras and use the first available device ID
+      if (!started) {
+        try {
+          const cameras = await Html5Qrcode.getCameras();
+          if (cameras && cameras.length > 0) {
+            await scanner.start(cameras[0].id, scanConfig, onScanSuccess, () => {});
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            setStatus('info', 'Camera active. Point at a SMART Health Link QR code.');
+            started = true;
+          }
+        } catch {}
+      }
+
+      if (!started) {
+        setStatus('error', 'Could not access any camera. Please check your browser permissions.');
       }
     }
 
