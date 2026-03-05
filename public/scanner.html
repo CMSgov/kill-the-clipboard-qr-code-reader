@@ -8,6 +8,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <!-- Client-side SHL processing: decryption happens in the browser, not the server -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jose/5.9.6/index.umd.min.js"></script>
+  <script src="https://unpkg.com/pako@2.1.0/dist/pako.min.js"></script>
+  <script src="/js/shl-client.js"></script>
   <style>
     :root {
       /* CMS Primary */
@@ -969,6 +973,7 @@
     // === Multi-tenant state ===
     const slug = window.location.pathname.split('/').filter(Boolean)[0];
     let orgConfig = null;
+    let orgName = 'Killtheclipboard';
     let token = null;
     let scanner = null;
     let lastQrText = null;
@@ -993,6 +998,7 @@
         }
 
         orgConfig = await resp.json();
+        orgName = orgConfig.name || orgConfig.slug || 'Killtheclipboard';
         applyBranding(orgConfig);
 
         // Set up admin links
@@ -1209,36 +1215,17 @@
 
     async function processScan(qrText, passcode) {
       try {
-        setStatus('info', 'Validating SMART Health Link...');
+        // ── Client-side SHL processing ──
+        // All decryption happens in the browser. The server never sees decrypted PHI.
+        // Server is only used as a CORS proxy (for encrypted blobs) and for routing
+        // the decrypted data to the configured storage destination.
 
-        const body = { qrText };
-        if (passcode) body.passcode = passcode;
+        setStatus('info', 'Parsing SMART Health Link...');
 
-        const resp = await fetch(`/api/orgs/${slug}/scan`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-          },
-          body: JSON.stringify(body),
+        const data = await processScanClientSide(qrText, slug, token, {
+          passcode,
+          orgName: orgName,
         });
-
-        const data = await resp.json();
-
-        if (!resp.ok) {
-          if (resp.status === 401) {
-            // Token expired or invalid — re-prompt for password
-            sessionStorage.removeItem('ktc_token_' + slug);
-            token = null;
-            setStatus('error', 'Session expired. Please log in again.');
-            setTimeout(() => {
-              showPasswordPrompt();
-            }, 1500);
-            return;
-          }
-          setStatus('error', data.error || 'Server error');
-          return;
-        }
 
         if (data.status === 'not_shl') {
           setStatus('warning', data.message);
@@ -1259,11 +1246,19 @@
         if (data.status === 'success') {
           setStatus('info', 'Saving...');
           document.getElementById('passcodeForm').classList.remove('visible');
-          // Small delay so user sees the "Saving..." state
           await new Promise(r => setTimeout(r, 300));
           showResults(data);
         }
       } catch (err) {
+        if (err.message === 'SESSION_EXPIRED') {
+          sessionStorage.removeItem('ktc_token_' + slug);
+          token = null;
+          setStatus('error', 'Session expired. Please log in again.');
+          setTimeout(() => {
+            showPasswordPrompt();
+          }, 1500);
+          return;
+        }
         setStatus('error', `Error: ${err.message}`);
       }
     }

@@ -121,7 +121,28 @@ const APPROVED_APPS = [
   { appId: 'yosi-health', name: 'Yosi Health', tier: 'pledgee' },
 ];
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+
+// ── Content Security Policy ──
+// Mitigates XSS by restricting which scripts, styles, and connections are allowed.
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "media-src 'self' blob:",
+    "frame-src 'self' blob: data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+  ].join('; '));
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 // ── Explicit page routes (before static, so they override index.html default) ──
 
@@ -1076,7 +1097,283 @@ app.get('/auth/outlook/callback', async (req, res) => {
   }
 });
 
-// Per-org scan (staff or admin auth required)
+// ══════════════════════════════════════════════════════════════════
+//  CLIENT-SIDE SHL ARCHITECTURE — CORS Proxy + Route Endpoint
+//  The browser handles SHL decryption. The server only:
+//    1. Proxies encrypted manifest fetches (CORS bridge)
+//    2. Routes already-decrypted data to storage destinations
+//  PHI never touches the server in decrypted form.
+// ══════════════════════════════════════════════════════════════════
+
+// SSRF protection: block requests to private/internal networks
+function isPrivateUrl(urlString) {
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname.toLowerCase();
+
+    // Block private IPs and localhost
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
+    if (hostname === '0.0.0.0') return true;
+    if (hostname.endsWith('.local')) return true;
+    if (hostname.endsWith('.internal')) return true;
+
+    // Block RFC 1918 ranges
+    const parts = hostname.split('.');
+    if (parts.length === 4 && parts.every(p => /^\d+$/.test(p))) {
+      const [a, b] = parts.map(Number);
+      if (a === 10) return true;                          // 10.0.0.0/8
+      if (a === 172 && b >= 16 && b <= 31) return true;  // 172.16.0.0/12
+      if (a === 192 && b === 168) return true;            // 192.168.0.0/16
+      if (a === 169 && b === 254) return true;            // 169.254.0.0/16 (link-local)
+    }
+
+    // Block non-HTTP protocols
+    if (!['http:', 'https:'].includes(url.protocol)) return true;
+
+    return false;
+  } catch {
+    return true; // Malformed URLs are blocked
+  }
+}
+
+// SHL CORS Proxy — forwards encrypted requests to SHL manifest servers
+// The decryption key never leaves the browser. Server only sees encrypted JWE blobs.
+app.post('/api/orgs/:slug/shl-proxy', authMiddleware('staff'), async (req, res) => {
+  const { url, method = 'GET', body = null, headers = {} } = req.body;
+
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  // SSRF protection
+  if (isPrivateUrl(url)) {
+    return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
+  }
+
+  try {
+    const fetchOptions = {
+      method: method.toUpperCase(),
+      headers: {},
+    };
+
+    // Only allow safe headers to be forwarded
+    const safeHeaders = ['content-type', 'accept'];
+    for (const [key, value] of Object.entries(headers)) {
+      if (safeHeaders.includes(key.toLowerCase())) {
+        fetchOptions.headers[key] = value;
+      }
+    }
+
+    if (body && ['POST', 'PUT'].includes(fetchOptions.method)) {
+      fetchOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+      if (!fetchOptions.headers['Content-Type'] && !fetchOptions.headers['content-type']) {
+        fetchOptions.headers['Content-Type'] = 'application/json';
+      }
+    }
+
+    const proxyResp = await fetch(url, fetchOptions);
+    const responseText = await proxyResp.text();
+
+    // Return the raw response so the browser can handle decryption
+    let parsedBody = null;
+    try {
+      parsedBody = JSON.parse(responseText);
+    } catch {
+      // Not JSON — likely a JWE string, which is expected
+    }
+
+    res.json({
+      status: proxyResp.status,
+      body: responseText,
+      parsedBody,
+    });
+  } catch (err) {
+    console.error(`[${req.params.slug}] SHL proxy error: ${err.message}`);
+    res.status(502).json({ error: `Failed to reach SHL server: ${err.message}` });
+  }
+});
+
+// Route endpoint — receives already-decrypted data from browser and routes to storage
+// The browser decrypted the SHL data; this endpoint only handles delivery.
+app.post('/api/orgs/:slug/route', authMiddleware('staff'), async (req, res) => {
+  const { fhirBundles = [], pdfs = [], label = null } = req.body;
+  const org = getOrgBySlug(req.params.slug);
+
+  if (!org) return res.status(404).json({ error: 'Organization not found.' });
+
+  // Re-validate FHIR on server side as a safety check
+  if (fhirBundles.length > 0) {
+    const validation = validateFhirBundles(fhirBundles);
+    if (!validation.valid) {
+      return res.status(400).json({
+        status: 'validation_failed',
+        error: `Invalid FHIR data: ${validation.errors.join('; ')}`,
+      });
+    }
+  }
+
+  // Filter results based on org's save format preference
+  const saveFormat = org.save_format || 'both';
+  const filteredResults = {
+    fhirBundles: saveFormat === 'pdf' ? [] : fhirBundles,
+    pdfs: saveFormat === 'fhir' ? [] : pdfs.map(p => ({
+      filename: p.filename,
+      data: p.dataBase64 ? Buffer.from(p.dataBase64, 'base64') : null,
+      url: p.url || null,
+    })),
+    raw: [],
+  };
+
+  // Route output based on org's storage type
+  let driveLink = null;
+  let driveError = null;
+  let onedriveLink = null;
+  let onedriveError = null;
+  let boxLink = null;
+  let boxError = null;
+  let emailSent = false;
+  let emailError = null;
+  let apiPosted = false;
+  let apiError = null;
+
+  if (org.storage_type === 'drive' && org.drive_refresh_token) {
+    try {
+      const driveConfig = {
+        folderId: org.drive_folder_id,
+        clientId: config.output.drive.clientId,
+        clientSecret: config.output.drive.clientSecret,
+        refreshToken: org.drive_refresh_token,
+      };
+      const driveSummary = await uploadToDrive(filteredResults, driveConfig, { verbose: false });
+      driveLink = driveSummary.driveFolder;
+    } catch (err) {
+      driveError = err.message;
+      console.error(`[${org.slug}] Drive upload failed: ${err.message}`);
+    }
+  }
+
+  if (org.storage_type === 'api' && org.api_url) {
+    try {
+      const apiConfig = {
+        url: org.api_url,
+        headers: org.api_headers ? JSON.parse(org.api_headers) : {},
+      };
+      await postToApi(filteredResults, apiConfig, { verbose: false });
+      apiPosted = true;
+    } catch (err) {
+      apiError = err.message;
+      console.error(`[${org.slug}] API post failed: ${err.message}`);
+    }
+  }
+
+  if (org.storage_type === 'email' && org.email_to) {
+    try {
+      const emailConfig = {
+        to: org.email_to,
+        smtp: {
+          host: process.env.SMTP_HOST,
+          port: process.env.SMTP_PORT || 587,
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+          from: process.env.SMTP_FROM || 'Kill the Clipboard <noreply@killtheclipboard.fly.dev>',
+        },
+      };
+      await sendEmail(filteredResults, emailConfig, { verbose: false });
+      emailSent = true;
+    } catch (err) {
+      emailError = err.message;
+      console.error(`[${org.slug}] Email send failed: ${err.message}`);
+    }
+  }
+
+  if (org.storage_type === 'gmail' && org.gmail_refresh_token && org.email_to) {
+    try {
+      await sendViaGmail(filteredResults, {
+        refreshToken: org.gmail_refresh_token,
+        to: org.email_to,
+      }, { verbose: false });
+      emailSent = true;
+    } catch (err) {
+      emailError = err.message;
+      console.error(`[${org.slug}] Gmail send failed: ${err.message}`);
+    }
+  }
+
+  if (org.storage_type === 'outlook' && org.outlook_refresh_token && org.email_to) {
+    try {
+      await sendViaOutlook(filteredResults, {
+        refreshToken: org.outlook_refresh_token,
+        to: org.email_to,
+      }, { verbose: false });
+      emailSent = true;
+    } catch (err) {
+      emailError = err.message;
+      console.error(`[${org.slug}] Outlook send failed: ${err.message}`);
+    }
+  }
+
+  if (org.storage_type === 'onedrive' && org.onedrive_refresh_token) {
+    try {
+      const odConfig = {
+        refreshToken: org.onedrive_refresh_token,
+        folderPath: org.onedrive_folder_path || '/KillTheClipboard',
+      };
+      const odSummary = await uploadToOnedrive(filteredResults, odConfig, { verbose: false });
+      onedriveLink = odSummary.folderLink;
+    } catch (err) {
+      onedriveError = err.message;
+      console.error(`[${org.slug}] OneDrive upload failed: ${err.message}`);
+    }
+  }
+
+  if (org.storage_type === 'box' && org.box_refresh_token) {
+    try {
+      const boxConfig = {
+        refreshToken: org.box_refresh_token,
+        folderId: org.box_folder_id,
+      };
+      const boxSummary = await uploadToBox(filteredResults, boxConfig, { verbose: false });
+      boxLink = boxSummary.folderLink;
+      if (boxSummary.newRefreshToken) {
+        updateOrgSettings(org.id, { box_refresh_token: boxSummary.newRefreshToken });
+      }
+    } catch (err) {
+      boxError = err.message;
+      console.error(`[${org.slug}] Box upload failed: ${err.message}`);
+    }
+  }
+
+  res.json({
+    status: 'success',
+    label,
+    storageType: org.storage_type,
+    saveFormat,
+    driveLink,
+    driveError,
+    onedriveLink,
+    onedriveError,
+    boxLink,
+    boxError,
+    emailSent,
+    emailError,
+    apiPosted,
+    apiError,
+    summary: {
+      fhirBundles: filteredResults.fhirBundles.length,
+      pdfs: filteredResults.pdfs.length,
+      rawEntries: 0,
+    },
+    fhirBundles: filteredResults.fhirBundles,
+    pdfs: pdfs.map(p => ({
+      filename: p.filename,
+      hasData: !!p.dataBase64,
+      dataBase64: p.dataBase64 || null,
+      url: p.url || null,
+    })),
+  });
+});
+
+// Per-org scan — LEGACY server-side processing (kept for CLI and backward compatibility)
 app.post('/api/orgs/:slug/scan', authMiddleware('staff'), async (req, res) => {
   const { qrText, passcode } = req.body;
   const org = getOrgBySlug(req.params.slug);

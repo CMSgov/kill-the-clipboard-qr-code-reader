@@ -1,6 +1,6 @@
 # Kill the Clipboard — Security & Compliance Specification
 
-**Version:** 1.0
+**Version:** 1.1 — Client-Side Decryption Architecture
 **Date:** March 4, 2026
 **Classification:** For distribution to CISO and compliance review teams
 **Contact:** agleason@russellstreetventures.com
@@ -36,9 +36,11 @@ Kill the Clipboard is a web-based tool that enables healthcare organizations to 
 
 **Key security properties:**
 
-- **No PHI storage on the server.** Patient health data is processed transiently in server memory, routed to the organization's configured destination, and discarded. Health records are never written to disk or persisted in the database.
-- **End-to-end encryption of health data.** SMART Health Links use AES-256-GCM encryption. Data remains encrypted until decrypted in server memory during processing.
+- **PHI never reaches the server.** All health data decryption and processing happens in the user's browser. The server functions as a CORS proxy for encrypted payloads and a routing layer for delivery — it never sees, processes, or stores decrypted patient data.
+- **End-to-end encryption of health data.** SMART Health Links use AES-256-GCM encryption. Data remains encrypted from the SHL server all the way to the browser. The decryption key never leaves the browser.
+- **Server handles routing, not processing.** After the browser decrypts health data, it sends it to the server solely for delivery to the organization's configured storage destination (Drive, OneDrive, Box, email, or API). This preserves admin-controlled routing while keeping PHI out of the server during the cryptographic processing phase.
 - **Multi-tenant isolation.** Each healthcare organization operates under its own URL, credentials, and configuration. No data is shared between organizations.
+- **Content Security Policy.** HTTP security headers restrict script execution, connection targets, and embedding to mitigate XSS and injection attacks.
 - **Standards-based.** Built on SMART Health Links, FHIR R4, and SMART Health Cards — the same interoperability standards mandated by ONC and adopted by major EHR vendors and health apps.
 
 ---
@@ -68,19 +70,27 @@ Kill the Clipboard is a web-based tool that enables healthcare organizations to 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Client (Browser)                         │
+│                    Client (Browser) — PHI Zone                  │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │  Camera   │  │  QR Code │  │  Results  │  │    Admin      │  │
-│  │  Access   │  │  Decoder │  │  Display  │  │    Settings   │  │
+│  │  Camera   │  │  QR Code │  │   SHL    │  │   Results     │  │
+│  │  Access   │  │  Decoder │  │ Decrypt  │  │   Display     │  │
+│  │          │  │  (jsqr)  │  │ (jose +  │  │              │  │
+│  │          │  │          │  │  pako)   │  │              │  │
 │  └──────────┘  └──────────┘  └──────────┘  └───────────────┘  │
-└────────────────────────────┬────────────────────────────────────┘
-                             │ HTTPS (TLS 1.2+)
-┌────────────────────────────▼────────────────────────────────────┐
+│                                                                 │
+│  Decryption key stays here. PHI is decrypted here.             │
+│  Server never sees the decryption key or decrypted health data │
+│  during the cryptographic processing phase.                     │
+└──────────┬─────────────────────────────────┬────────────────────┘
+           │ HTTPS (encrypted blobs only)    │ HTTPS (decrypted data
+           │                                 │ for routing to storage)
+┌──────────▼─────────────────────────────────▼────────────────────┐
 │                     Application Server                          │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌───────────────┐  │
-│  │   Auth    │  │   SHL    │  │   FHIR   │  │   Output      │  │
-│  │  Module   │  │ Decoder  │  │ Extractor│  │   Router      │  │
-│  └──────────┘  └──────────┘  └──────────┘  └───────────────┘  │
+│  ┌──────────┐  ┌──────────────┐  ┌──────────────────────────┐  │
+│  │   Auth    │  │  CORS Proxy  │  │   Output Router          │  │
+│  │  Module   │  │  (encrypted  │  │   (receives decrypted    │  │
+│  │          │  │  blobs only) │  │   data, routes to dest)  │  │
+│  └──────────┘  └──────────────┘  └──────────────────────────┘  │
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │              SQLite Database (config only)                │  │
@@ -99,19 +109,28 @@ Kill the Clipboard is a web-based tool that enables healthcare organizations to 
    └──────────┘       └──────────────┘     └───────────┘
 ```
 
+### Design Principle: Threat Avoidance by Architecture
+
+The system is designed to **structurally eliminate** threat categories rather than mitigate them:
+
+- The server cannot leak decrypted PHI because it never performs decryption
+- The CORS proxy cannot be used to exfiltrate health data because it only handles encrypted blobs — the decryption key never leaves the browser
+- A server compromise yields organization configuration data, not patient records
+- SSRF protection on the CORS proxy prevents requests to internal/private networks
+
 ### Technology Stack
 
-| Component | Technology | Version |
-|-----------|-----------|---------|
-| Runtime | Node.js | 20.x LTS |
-| Web Framework | Express | 5.x |
-| Database | SQLite (better-sqlite3) | Embedded |
-| JWE/JWS Cryptography | jose | 4.x |
-| Password Hashing | bcryptjs | 3.x |
-| QR Code Processing | jsqr | 1.4 |
-| Image Processing | sharp | 0.33 |
-| Google APIs | googleapis | 171.x |
-| Email (SMTP) | nodemailer | 8.x |
+| Component | Technology | Version | Runs In |
+|-----------|-----------|---------|---------|
+| Runtime | Node.js | 20.x LTS | Server |
+| Web Framework | Express | 5.x | Server |
+| Database | SQLite (better-sqlite3) | Embedded | Server |
+| JWE Decryption | jose (UMD browser build) | 5.x | **Browser** |
+| DEFLATE Decompression | pako | 2.x | **Browser** |
+| QR Code Scanning | html5-qrcode | 2.3 | **Browser** |
+| Password Hashing | bcryptjs | 3.x | Server |
+| Google APIs | googleapis | 171.x | Server |
+| Email (SMTP) | nodemailer | 8.x | Server |
 
 ---
 
@@ -123,39 +142,50 @@ Kill the Clipboard is a web-based tool that enables healthcare organizations to 
 Step 1: QR Scan (Client-side)
   Browser camera captures QR code image
   jsqr library decodes QR code locally in the browser
-  Extracted URL sent to server via HTTPS POST
 
-Step 2: SHL Processing (Server-side, in memory)
-  a. Parse SHL URI → extract manifest URL + AES-256 encryption key
-  b. Fetch encrypted manifest from SHL server (outbound HTTPS)
-  c. Decrypt JWE payload using AES-256-GCM
-  d. Decompress if DEFLATE-compressed
-  e. Parse FHIR Bundle(s) and/or extract PDF documents
+Step 2: SHL Parsing (Client-side)
+  Parse SHL URI → extract manifest URL + AES-256 encryption key
+  Key NEVER leaves the browser
 
-Step 3: Data Routing (Server-side, in memory)
-  Route extracted data to organization's configured destination:
+Step 3: Manifest Fetch (Client → Server CORS Proxy → SHL Server)
+  Browser sends manifest URL to server's CORS proxy
+  Server fetches encrypted manifest from SHL server
+  Server returns encrypted response verbatim to browser
+  Server never sees the decryption key or decrypted content
+
+Step 4: Decryption & Extraction (Client-side)
+  Browser decrypts JWE payload using AES-256-GCM (jose library)
+  Browser decompresses if DEFLATE-compressed (pako library)
+  Browser parses FHIR Bundle(s) and/or extracts PDF documents
+  All cryptographic operations happen in browser memory
+
+Step 5: Data Routing (Client → Server → Storage Destination)
+  Browser sends decrypted data to server's route endpoint
+  Server routes to organization's configured destination:
   • Cloud storage: Upload via OAuth 2.0 API (Drive/OneDrive/Box)
   • Email: Send as attachment via OAuth 2.0 API (Gmail/Outlook)
   • API/Webhook: POST JSON payload to configured endpoint
-  • Direct download: Stream back to browser as file download
+  • Direct download: Returned to browser as file download
 
-Step 4: Cleanup
-  All health data references in server memory become eligible
-  for garbage collection. No data is written to disk or database.
+Step 6: Cleanup
+  Browser releases health data references
+  Server routing endpoint does not persist any health data
 ```
 
 ### Data Flow Diagram — What Touches What
 
-| Data Element | Browser | Server Memory | Server Disk/DB | Third-Party Destination |
-|---|---|---|---|---|
-| QR code image | ✅ Captured | ❌ | ❌ | ❌ |
-| SHL URI / key | ✅ Decoded | ✅ Transient | ❌ | ❌ |
-| Encrypted JWE | ❌ | ✅ Transient | ❌ | ❌ |
-| Decrypted FHIR data | ✅ Displayed | ✅ Transient | ❌ | ✅ Delivered |
-| Decrypted PDFs | ✅ Displayed | ✅ Transient | ❌ | ✅ Delivered |
-| Org configuration | ❌ | ✅ | ✅ Persisted | ❌ |
-| OAuth tokens | ❌ | ✅ | ✅ Persisted | ❌ |
-| Password hashes | ❌ | ✅ | ✅ Persisted | ❌ |
+| Data Element | Browser | Server (CORS Proxy) | Server (Route Endpoint) | Server Disk/DB | Destination |
+|---|---|---|---|---|---|
+| QR code image | ✅ Captured | ❌ | ❌ | ❌ | ❌ |
+| SHL URI / key | ✅ Decoded | ❌ Never | ❌ Never | ❌ | ❌ |
+| Encrypted JWE | ✅ Received | ✅ Pass-through | ❌ | ❌ | ❌ |
+| Decrypted FHIR data | ✅ Decrypted | ❌ Never | ✅ Transient routing | ❌ | ✅ Delivered |
+| Decrypted PDFs | ✅ Decrypted | ❌ Never | ✅ Transient routing | ❌ | ✅ Delivered |
+| Org configuration | ❌ | ❌ | ✅ | ✅ Persisted | ❌ |
+| OAuth tokens | ❌ | ❌ | ✅ | ✅ Persisted | ❌ |
+| Password hashes | ❌ | ❌ | ✅ | ✅ Persisted | ❌ |
+
+**Key distinction:** The CORS proxy only handles encrypted blobs — it cannot access, read, or log the health data because it never has the decryption key. The route endpoint receives already-decrypted data solely for delivery purposes and does not persist it.
 
 ---
 
@@ -173,11 +203,12 @@ Step 4: Cleanup
 
 ### PHI Handling Principles
 
-1. **Transience:** Patient health data exists in server memory only for the duration of the scan-and-route operation (typically 2-5 seconds).
-2. **No logging of PHI:** Health data content is never written to application logs. Error messages reference processing stage, not data content.
-3. **No indexing:** Patient records are not searchable, queryable, or browsable within the system.
-4. **No caching:** Health data is not cached in any server-side store (no Redis, no file cache, no session store).
-5. **Memory-only processing:** All decryption, parsing, and extraction occurs in Node.js process memory with no intermediate disk writes.
+1. **Browser-side decryption:** All SHL decryption and FHIR parsing occurs in the user's browser. The decryption key never leaves the browser. The server's CORS proxy only transports encrypted JWE blobs.
+2. **Server handles routing, not processing:** The server receives already-decrypted data from the browser solely for delivery to the configured storage destination. This data is transient in server memory (typically 1-3 seconds) and is not persisted.
+3. **No logging of PHI:** Health data content is never written to application logs. Error messages reference processing stage, not data content.
+4. **No indexing:** Patient records are not searchable, queryable, or browsable within the system.
+5. **No caching:** Health data is not cached in any server-side or client-side persistent store (no Redis, no file cache, no session store, no localStorage).
+6. **Structural threat elimination:** The architecture is designed so that a server compromise cannot expose the cryptographic processing of health data — because that processing doesn't happen on the server.
 
 ---
 
@@ -284,11 +315,32 @@ The JWE decryptor explicitly restricts accepted algorithms:
 | graph.microsoft.com | OneDrive upload, Outlook send | HTTPS |
 | api.box.com | Box file upload | HTTPS |
 
-### CORS & Browser Security
+### CORS Proxy Security
+
+The server includes a CORS proxy endpoint that bridges browser requests to SHL manifest servers. This proxy has strict security controls:
+
+- **SSRF protection:** Blocks requests to private/internal IP ranges (RFC 1918), localhost, link-local, and non-HTTP protocols
+- **Header allowlisting:** Only safe HTTP headers (`Content-Type`, `Accept`) are forwarded
+- **Method restriction:** Only `GET` and `POST` methods are proxied
+- **Authentication required:** Staff or admin token required to use the proxy
+- **Encrypted payloads only:** The proxy transports encrypted JWE blobs — the decryption key never leaves the browser, so the proxy cannot read the health data
+
+### Content Security Policy (CSP)
+
+HTTP security headers are set on all responses to mitigate XSS and injection attacks:
+
+- `script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com` — scripts only from self and trusted CDNs
+- `connect-src 'self'` — AJAX/fetch requests only to same origin
+- `object-src 'none'` — no plugin-based content (Flash, Java)
+- `base-uri 'self'` — prevents base tag injection
+- `X-Content-Type-Options: nosniff` — prevents MIME type sniffing
+- `X-Frame-Options: DENY` — prevents clickjacking
+- `Referrer-Policy: strict-origin-when-cross-origin` — limits referrer information
+
+### Browser Security
 
 - Static HTML pages served for scanner, admin, registration
 - API endpoints return JSON responses
-- No cross-origin resource sharing (CORS) headers configured (same-origin only)
 - Browser camera access requires HTTPS (enforced by browser security model)
 
 ---
@@ -488,7 +540,7 @@ All production dependencies are well-established, actively maintained open-sourc
 
 | Risk | Severity | Likelihood | Mitigation |
 |------|----------|-----------|------------|
-| **PHI exposure via server compromise** | High | Low | PHI is never stored — only transient in memory. No disk persistence, no database storage of health records. Attacker would need active process memory access during a scan operation. |
+| **PHI exposure via server compromise** | High | Very Low | PHI decryption occurs in the browser, not on the server. The server's CORS proxy only handles encrypted JWE blobs and never possesses the decryption key. The route endpoint receives decrypted data transiently for delivery only — a server compromise would require intercepting an active routing operation. |
 | **OAuth token theft** | Medium | Low | Tokens stored in SQLite on encrypted Fly.io volume. Each token scoped to one organization. Revocable by admin at any time. |
 | **Session token forgery** | Medium | Low | HMAC-SHA256 signed with cryptographically random secret. Token expiration enforced server-side. |
 | **Password brute force** | Medium | Medium | bcrypt with cost factor 10 makes brute force computationally expensive (~100ms per attempt). |
@@ -496,7 +548,8 @@ All production dependencies are well-established, actively maintained open-sourc
 | **SQL injection** | High | Very Low | All database queries use parameterized statements. Column names validated against allowlist. |
 | **Cross-tenant data access** | High | Very Low | Token-based slug verification on every request. Staff tokens cannot access other organizations' data. |
 | **Decompression bomb (zip bomb via JWE)** | Medium | Low | 5 MB maximum decompression limit enforced on all inflate operations. |
-| **SSRF via malicious SHL URL** | Medium | Low | SHL URLs originate from patient QR codes (controlled by legitimate health apps). Server makes outbound requests only to URLs from scanned QR codes. |
+| **SSRF via malicious SHL URL** | Medium | Low | CORS proxy validates all URLs against SSRF blocklist (RFC 1918 private ranges, localhost, link-local, non-HTTP protocols). Only HTTPS URLs to external hosts are proxied. |
+| **XSS via SHL content** | Medium | Low | Content Security Policy headers restrict script execution to trusted sources. SHL labels and FHIR data displayed using `textContent` (not `innerHTML`) where possible. |
 
 ---
 
@@ -568,13 +621,16 @@ Because Kill the Clipboard does not persistently store PHI:
 ## 18. Frequently Asked Questions
 
 **Q: Does Kill the Clipboard store patient health records?**
-A: No. Health data is processed in server memory only — it is never written to disk, stored in a database, or cached. Data exists in memory for the duration of the scan operation (typically 2-5 seconds) and is then discarded.
+A: No. Health data is decrypted and processed entirely in the user's browser — it never touches the server in its decrypted form during the cryptographic processing phase. The server receives decrypted data only for the purpose of routing it to the organization's configured storage destination, and does not persist it. No health records are written to disk, stored in a database, or cached.
 
 **Q: What data IS stored on the server?**
-A: Only organization configuration: organization name, URL slug, bcrypt-hashed passwords, storage destination settings, and OAuth refresh tokens for connected cloud services.
+A: Only organization configuration: organization name, URL slug, bcrypt-hashed passwords, storage destination settings, and OAuth refresh tokens for connected cloud services. No patient health data is ever stored.
 
 **Q: Is health data encrypted?**
-A: Yes, at every stage. SMART Health Links use AES-256-GCM encryption for the health data payload. Data remains encrypted until it is decrypted in server memory for processing. All network connections use HTTPS/TLS.
+A: Yes, at every stage. SMART Health Links use AES-256-GCM encryption. Data remains encrypted from the SHL server through the CORS proxy all the way to the browser. Decryption only happens in the browser — the decryption key never leaves the browser. All network connections use HTTPS/TLS.
+
+**Q: Does the server ever see decrypted health data?**
+A: The server's CORS proxy only handles encrypted JWE payloads and never has the decryption key. After the browser decrypts the data, it sends it to the server's routing endpoint for delivery to the configured storage destination (Drive, email, etc.). The routing endpoint processes this data transiently and does not persist it. This architecture means the server never performs cryptographic operations on health data — that responsibility lies entirely with the browser.
 
 **Q: Can one organization access another organization's data?**
 A: No. Every API request is validated against the authenticated organization's slug. Tokens are scoped to a specific organization, and the middleware rejects any cross-tenant access attempts.
