@@ -1,0 +1,38 @@
+# Release: on version tags (v*), test, build, and package Core + Tier 2+.
+# Run only when you push a tag (e.g. git tag v0.2.0 && git push --tags).
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npm run pack:core
+      - run: npm run pack:full
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: core-package
+          path: killtheclipboard-core-*.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: full-package
+          path: killtheclipboard-full-*.zip

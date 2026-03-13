@@ -13,36 +13,46 @@ A multi-tenant web application that lets healthcare practices scan **SMART Healt
 
 No more clipboard. No more faxes. No more manual data entry.
 
-## Features
+**Features:** Browser-based SHL QR scanner. **Core:** client-only, no server, save via Web Share or download. **Full app:** multi-tenant server with per-org URLs, 7 destinations (Drive, OneDrive, Box, Gmail, Outlook, API, download), role-based access, setup guide, super-admin dashboard.
 
-- **QR Scanner** — Browser-based camera scanner for SMART Health Link QR codes
-- **Multi-tenant** — Each organization gets its own URL, passwords, and configuration
-- **7 storage destinations:**
-  - Direct Download (browser)
-  - Google Drive
-  - OneDrive
-  - Box
-  - Gmail
-  - Outlook
-  - API / Webhook (POST JSON to any endpoint)
-- **Configurable output** — PDF only, FHIR only, or both
-- **Role-based access** — Admin password (settings) and Staff password (scanner)
-- **Session management** — Admin sessions: 24 hours, Staff sessions: 12 hours
-- **Setup guide** — Built-in step-by-step configuration walkthrough
-- **Super admin dashboard** — Manage all organizations from a single panel
+---
 
-## Quick Start
+## Quick Start (Core) — recommended
+
+**Core** is the client-only scanner: no server, no auth. PHI stays in the browser; users save via Web Share (mobile) or browser download (desktop). This is the recommended way to start.
 
 ```bash
 git clone https://github.com/CMSgov/kill-the-clipboard-qr-code-reader.git
-cd killtheclipboard
+cd kill-the-clipboard-qr-code-reader
+npm install
+npm run build
+```
+
+Then either:
+
+- **Try locally:** `npm run serve:core` — opens at `http://localhost:3000`
+- **Deploy:** Upload the contents of `dist/core/` to any static host or CDN (Netlify, Vercel, S3, GitHub Pages). No Node server required.
+
+To create a zip for distribution: `npm run pack:core`. See **docs/core-deployment.md** for details (HTTPS, Web Share, optional CORS proxy).
+
+---
+
+## Full app (multi-tenant server)
+
+For organizations that need per-org URLs, staff/admin passwords, and routing to Google Drive, Gmail, OneDrive, Box, Outlook, or a webhook — run the full server.
+
+```bash
+git clone https://github.com/CMSgov/kill-the-clipboard-qr-code-reader.git
+cd kill-the-clipboard-qr-code-reader
 npm install
 npm start
 ```
 
 Visit `http://localhost:3000` to register your first organization.
 
-## Self-Hosting Guide
+To create a server package zip (Tier 2+): `npm run pack:full`. Unzip elsewhere and run `npm ci && npm start` with the required env vars.
+
+## Self-Hosting Guide (full app)
 
 ### Prerequisites
 
@@ -134,23 +144,10 @@ When registering OAuth apps, use these callback URLs (replace `your-domain.com` 
 | Outlook | `https://your-domain.com/auth/outlook/callback` |
 | Box | `https://your-domain.com/auth/box/callback` |
 
-## Core (client-only) deployment
+## Core deployment (details)
 
-**Core** is a client-only scanner: no server handles PHI, no auth, save via Web Share (mobile) or browser download (desktop). It can run on a static host or CDN with zero backend.
+Build: `npm run build` (or `npm run build:core`). Output: `dist/core/`. To create a zip: `npm run pack:core`. Deploy `dist/core/` to any static host; see **docs/core-deployment.md** for HTTPS, Web Share, and optional CORS proxy.
 
-1. **Build the Core artifact:**
-   ```bash
-   npm run build:core
-   ```
-   This writes `dist/core/index.html` and `dist/core/js/` (shl-client.js, approved-apps.js).
-
-2. **Deploy** the contents of `dist/core/` to any static host or CDN (e.g. S3 + CloudFront, Netlify, GitHub Pages). No Node server is required. Serve `index.html` at the root of the deployment (or as the default document) so script paths `js/...` resolve.
-
-3. **HTTPS** is required for camera access in production.
-
-4. **Optional CORS proxy:** If SHL manifest servers don’t send CORS headers, you can run the full app with `ENABLE_CORE_PROXY=1` and point the Core client at the proxy: before loading the scanner, set `window.__CORE_PROXY_URL__ = 'https://your-server.com/api/shl-proxy'` (e.g. in a small inline script in `index.html`). The proxy only forwards encrypted traffic and uses the same SSRF/rate limits as the org-scoped proxy.
-
-See **docs/core-deployment.md** for details (browser support, Web Share, confirm-before-fetch).
 
 ## Architecture
 

@@ -9,3 +9,4 @@ data/*.db
 *.db-shm
 coverage/
 .idea
+*.zip
