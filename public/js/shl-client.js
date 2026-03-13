@@ -55,7 +55,6 @@ function uint8ArrayToBase64(bytes) {
   return btoa(binary);
 }
 
-
 // ════════════════════════════════════════════════════════
 //  SHL URI Parser
 // ════════════════════════════════════════════════════════
@@ -99,7 +98,6 @@ function parseShlUri(text) {
     v: payload.v || 1,
   };
 }
-
 
 // ════════════════════════════════════════════════════════
 //  Fetch: direct (Core) or via CORS proxy
@@ -191,7 +189,7 @@ async function fetchManifestClient(shlPayload, fetchOptions, config = {}) {
     if (result.status === 401) {
       const remaining = result.parsedBody?.remainingAttempts;
       throw new Error(
-        `Invalid passcode.${remaining != null ? ` ${remaining} attempts remaining.` : ''}`
+        `Invalid passcode.${remaining != null ? ` ${remaining} attempts remaining.` : ''}`,
       );
     }
     if (result.status === 404) {
@@ -226,7 +224,7 @@ async function fetchManifestClient(shlPayload, fetchOptions, config = {}) {
     if (result.status === 401) {
       const remaining = result.parsedBody?.remainingAttempts;
       throw new Error(
-        `Invalid passcode.${remaining != null ? ` ${remaining} attempts remaining.` : ''}`
+        `Invalid passcode.${remaining != null ? ` ${remaining} attempts remaining.` : ''}`,
       );
     }
     if (result.status === 404) {
@@ -250,7 +248,6 @@ async function fetchManifestClient(shlPayload, fetchOptions, config = {}) {
   }
   return await tryDirect();
 }
-
 
 // ════════════════════════════════════════════════════════
 //  JWE Decryptor (browser-side using jose + pako)
@@ -286,7 +283,6 @@ async function decryptToStringClient(jweString, keyBytes) {
     contentType,
   };
 }
-
 
 // ════════════════════════════════════════════════════════
 //  FHIR Extractor (browser-side)
@@ -369,7 +365,9 @@ async function extractHealthDataClient(manifest, keyBytes, fetchOptions) {
           results.pdfs.push(...pdfs);
           handled = true;
         }
-      } catch { /* not JSON */ }
+      } catch {
+        /* not JSON */
+      }
       if (!handled) {
         results.raw.push({ type: contentType || 'unknown', data: text });
       }
@@ -378,7 +376,6 @@ async function extractHealthDataClient(manifest, keyBytes, fetchOptions) {
 
   return results;
 }
-
 
 function extractPdfsFromBundle(resource) {
   const pdfs = [];
@@ -397,8 +394,7 @@ function extractPdfsFromBundle(resource) {
       if (!att) continue;
 
       if (att.contentType === 'application/pdf') {
-        const filename =
-          att.title || att.url?.split('/').pop() || `document-${Date.now()}.pdf`;
+        const filename = att.title || att.url?.split('/').pop() || `document-${Date.now()}.pdf`;
 
         if (att.data) {
           pdfs.push({
@@ -419,7 +415,6 @@ function extractPdfsFromBundle(resource) {
   return pdfs;
 }
 
-
 // Same limit as JWE path to prevent decompression-bomb DoS via SHC payloads
 const MAX_SHC_DECOMPRESSED_SIZE = 5_000_000; // 5 MB
 
@@ -438,11 +433,9 @@ function decodeShcJwsBrowser(jws) {
   }
 }
 
-
 function sanitizeFilename(name) {
   return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200);
 }
-
 
 function validateFhirBundlesClient(fhirBundles) {
   const errors = [];
@@ -478,7 +471,6 @@ function validateFhirBundlesClient(fhirBundles) {
 
   return { valid: errors.length === 0, errors };
 }
-
 
 // ════════════════════════════════════════════════════════
 //  Main pipeline: processScanClientSide()
@@ -558,11 +550,11 @@ async function processScanClientSide(qrText, slug, token, options = {}) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
       fhirBundles: results.fhirBundles,
-      pdfs: results.pdfs.map(p => ({
+      pdfs: results.pdfs.map((p) => ({
         filename: p.filename,
         dataBase64: p.dataBase64 || (p.data ? uint8ArrayToBase64(p.data) : null),
         url: p.url || null,
@@ -648,4 +640,10 @@ async function processScanCore(qrText, options = {}) {
     label: shlPayload.label,
     storageType: 'download',
   };
+}
+
+// Expose entry points for scanner.html (oxlint sees these as "used")
+if (typeof window !== 'undefined') {
+  window.processScanCore = processScanCore;
+  window.processScanClientSide = processScanClientSide;
 }

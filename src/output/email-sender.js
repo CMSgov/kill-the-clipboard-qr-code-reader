@@ -47,7 +47,9 @@ export async function sendEmail(results, emailConfig, options = {}) {
         const r = entry.resource;
         if (r?.resourceType === 'Patient') {
           const name = r.name?.[0];
-          const nameStr = name ? [name.given?.join(' '), name.family].filter(Boolean).join(' ') : 'Unknown';
+          const nameStr = name
+            ? [name.given?.join(' '), name.family].filter(Boolean).join(' ')
+            : 'Unknown';
           text += `Patient: ${nameStr}\n`;
           if (r.birthDate) text += `DOB: ${r.birthDate}\n`;
           text += '\n';

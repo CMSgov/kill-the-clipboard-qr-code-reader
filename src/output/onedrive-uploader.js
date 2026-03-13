@@ -13,7 +13,9 @@ async function getAccessToken(refreshToken) {
   const clientSecret = process.env.ONEDRIVE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    throw new Error('OneDrive not configured. Set ONEDRIVE_CLIENT_ID and ONEDRIVE_CLIENT_SECRET env vars.');
+    throw new Error(
+      'OneDrive not configured. Set ONEDRIVE_CLIENT_ID and ONEDRIVE_CLIENT_SECRET env vars.',
+    );
   }
 
   const params = new URLSearchParams({
@@ -57,7 +59,9 @@ async function uploadFile(accessToken, folderPath, filename, content, contentTyp
 
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
-    throw new Error(`OneDrive upload failed for ${filename}: ${err.error?.message || resp.statusText}`);
+    throw new Error(
+      `OneDrive upload failed for ${filename}: ${err.error?.message || resp.statusText}`,
+    );
   }
 
   return resp.json();
@@ -130,12 +134,20 @@ export async function uploadToOnedrive(results, onedriveConfig, options = {}) {
       try {
         const resp = await fetch(pdf.url);
         if (resp.ok) pdfBuffer = Buffer.from(await resp.arrayBuffer());
-      } catch { continue; }
+      } catch {
+        continue;
+      }
     }
 
     if (!pdfBuffer) continue;
 
-    const file = await uploadFile(accessToken, folderPath, pdf.filename, pdfBuffer, 'application/pdf');
+    const file = await uploadFile(
+      accessToken,
+      folderPath,
+      pdf.filename,
+      pdfBuffer,
+      'application/pdf',
+    );
     uploaded.push({ filename: pdf.filename, id: file.id, link: file.webUrl });
     if (verbose) console.error(`OneDrive: uploaded ${pdf.filename}`);
   }
@@ -150,7 +162,13 @@ export async function uploadToOnedrive(results, onedriveConfig, options = {}) {
     files: uploaded,
   };
 
-  await uploadFile(accessToken, folderPath, 'summary.json', JSON.stringify(summary, null, 2), 'application/json');
+  await uploadFile(
+    accessToken,
+    folderPath,
+    'summary.json',
+    JSON.stringify(summary, null, 2),
+    'application/json',
+  );
 
   return {
     folderPath,

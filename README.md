@@ -64,43 +64,46 @@ To create a server package zip (Tier 2+): `npm run pack:full`. Unzip elsewhere a
 
 **Required:**
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | Server port (default: `3000`) |
-| `DATABASE_PATH` | Path to SQLite database file (default: `./data/ktc.db`) |
-| `JWT_SECRET` | Secret key for signing auth tokens (auto-generated if not set) |
-| `ADMIN_KEY` | Super admin dashboard password |
+| Variable        | Description                                                    |
+| --------------- | -------------------------------------------------------------- |
+| `PORT`          | Server port (default: `3000`)                                  |
+| `DATABASE_PATH` | Path to SQLite database file (default: `./data/ktc.db`)        |
+| `JWT_SECRET`    | Secret key for signing auth tokens (auto-generated if not set) |
+| `ADMIN_KEY`     | Super admin dashboard password                                 |
 
 **Google Drive + Gmail (optional):**
 
-| Variable | Description |
-|----------|-------------|
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID |
+| Variable               | Description                |
+| ---------------------- | -------------------------- |
+| `GOOGLE_CLIENT_ID`     | Google OAuth client ID     |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
 
 Create credentials at [Google Cloud Console](https://console.cloud.google.com/apis/credentials). Enable the **Google Drive API** and **Gmail API**. Add redirect URIs:
+
 - `https://your-domain.com/auth/google/callback` (Drive)
 - `https://your-domain.com/auth/gmail/callback` (Gmail)
 
 **OneDrive + Outlook (optional):**
 
-| Variable | Description |
-|----------|-------------|
-| `ONEDRIVE_CLIENT_ID` | Microsoft/Azure app client ID |
+| Variable                 | Description                       |
+| ------------------------ | --------------------------------- |
+| `ONEDRIVE_CLIENT_ID`     | Microsoft/Azure app client ID     |
 | `ONEDRIVE_CLIENT_SECRET` | Microsoft/Azure app client secret |
 
 Register an app at [Azure Portal](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps). Add **Microsoft Graph** permissions: `Files.ReadWrite`, `Mail.Send`, `User.Read`. Add redirect URIs:
+
 - `https://your-domain.com/auth/onedrive/callback` (OneDrive)
 - `https://your-domain.com/auth/outlook/callback` (Outlook)
 
 **Box (optional):**
 
-| Variable | Description |
-|----------|-------------|
-| `BOX_CLIENT_ID` | Box app client ID |
+| Variable            | Description           |
+| ------------------- | --------------------- |
+| `BOX_CLIENT_ID`     | Box app client ID     |
 | `BOX_CLIENT_SECRET` | Box app client secret |
 
 Create an app at [Box Developer Console](https://app.box.com/developers/console). Choose **Custom App** with **User Authentication (OAuth 2.0)**. Enable scopes: `Read and write all files and folders`. Add redirect URI:
+
 - `https://your-domain.com/auth/box/callback`
 
 ### Deploy with Docker
@@ -136,18 +139,17 @@ The included `fly.toml` is pre-configured with a persistent volume mounted at `/
 
 When registering OAuth apps, use these callback URLs (replace `your-domain.com` with your actual domain):
 
-| Integration | Redirect URI |
-|-------------|-------------|
-| Google Drive | `https://your-domain.com/auth/google/callback` |
-| Gmail | `https://your-domain.com/auth/gmail/callback` |
-| OneDrive | `https://your-domain.com/auth/onedrive/callback` |
-| Outlook | `https://your-domain.com/auth/outlook/callback` |
-| Box | `https://your-domain.com/auth/box/callback` |
+| Integration  | Redirect URI                                     |
+| ------------ | ------------------------------------------------ |
+| Google Drive | `https://your-domain.com/auth/google/callback`   |
+| Gmail        | `https://your-domain.com/auth/gmail/callback`    |
+| OneDrive     | `https://your-domain.com/auth/onedrive/callback` |
+| Outlook      | `https://your-domain.com/auth/outlook/callback`  |
+| Box          | `https://your-domain.com/auth/box/callback`      |
 
 ## Core deployment (details)
 
 Build: `npm run build` (or `npm run build:core`). Output: `dist/core/`. To create a zip: `npm run pack:core`. Deploy `dist/core/` to any static host; see **docs/core-deployment.md** for HTTPS, Web Share, and optional CORS proxy.
-
 
 ## Architecture
 
@@ -186,10 +188,10 @@ data/
 
 To avoid duplication, some assets are generated from a single source:
 
-| Source | Generated / used by | Command |
-|--------|---------------------|--------|
+| Source                  | Generated / used by                  | Command                          |
+| ----------------------- | ------------------------------------ | -------------------------------- |
 | `data/approved-apps.js` | `public/js/approved-apps.js`, server | `npm run generate:approved-apps` |
-| `src/util/sanitize.js` | `public/js/sanitize.js`, server | `npm run generate:sanitize` |
+| `src/util/sanitize.js`  | `public/js/sanitize.js`, server      | `npm run generate:sanitize`      |
 
 **Approved apps:** The list in `data/approved-apps.js` comes from the **CMS "Kill the Clipboard"** program: 12 early adopters and 71+ pledgees (see [CMS health tech ecosystem](https://www.cms.gov/health-tech-ecosystem/early-adopters) and [Kill the Clipboard](https://www.cms.gov/health-tech-ecosystem/early-adopters/kill-the-clipboard)). This file is maintained by hand; when CMS updates the participant list, edit `data/approved-apps.js`, then run `npm run generate:approved-apps`. The server imports from `data/`; the client loads the generated script. Core build runs this automatically.
 

@@ -3,13 +3,7 @@
  */
 import { createHmac } from 'node:crypto';
 import { describe, it, expect, beforeAll } from 'vitest';
-import {
-  hashPassword,
-  verifyPassword,
-  createToken,
-  verifyToken,
-  authMiddleware,
-} from '../auth.js';
+import { hashPassword, verifyPassword, createToken, verifyToken, authMiddleware } from '../auth.js';
 
 beforeAll(() => {
   process.env.SESSION_SECRET = 'test-secret-for-auth-tests';

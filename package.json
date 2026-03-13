@@ -2,32 +2,33 @@
   "name": "killtheclipboard",
   "version": "0.2.0-alpha",
   "description": "SMART Health Link QR scanner — extracts FHIR records and PDFs from SHL QR codes",
-  "type": "module",
+  "keywords": [
+    "fhir",
+    "health-records",
+    "qr-code",
+    "smart-health-link"
+  ],
+  "license": "MIT",
+  "author": "Amy Gleason",
   "bin": {
     "shl-scan": "./bin/shl-scan.js"
   },
+  "type": "module",
   "scripts": {
     "start": "node server.js",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
     "scan": "node bin/shl-scan.js",
     "generate:approved-apps": "node scripts/generate-approved-apps.js",
     "generate:sanitize": "node scripts/generate-sanitize.js",
+    "build": "npm run build:core",
     "build:core": "npm run generate:approved-apps && npm run generate:sanitize && node scripts/build-core.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
   },
-  "devDependencies": {
-    "@vitest/coverage-v8": "^2.1.0",
-    "vitest": "^2.1.0"
-  },
-  "keywords": [
-    "smart-health-link",
-    "fhir",
-    "qr-code",
-    "health-records"
-  ],
-  "author": "Amy Gleason",
-  "license": "MIT",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
@@ -40,5 +41,11 @@
     "nodemailer": "^8.0.1",
     "sharp": "^0.33.5",
     "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.0",
+    "oxfmt": "^0.19.0",
+    "oxlint": "^1.0.0",
+    "vitest": "^2.1.0"
   }
 }

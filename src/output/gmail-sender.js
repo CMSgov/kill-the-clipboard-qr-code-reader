@@ -46,7 +46,8 @@ export function getGmailAuthUrl(redirectUri, state) {
     client_id: clientId,
     response_type: 'code',
     redirect_uri: redirectUri,
-    scope: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email',
+    scope:
+      'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/userinfo.email',
     state,
     access_type: 'offline',
     prompt: 'consent',
@@ -101,11 +102,7 @@ async function buildRawMessage(from, to, subject, text, attachments) {
   const message = await mail.compile().build();
 
   // Gmail requires base64url encoding (not standard base64)
-  return message
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  return message.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 // ── Main send function ──────────────────────────────────────────
@@ -180,17 +177,14 @@ export async function sendViaGmail(results, gmailConfig, options = {}) {
     attachments,
   );
 
-  const resp = await fetch(
-    'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ raw }),
+  const resp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
     },
-  );
+    body: JSON.stringify({ raw }),
+  });
 
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));

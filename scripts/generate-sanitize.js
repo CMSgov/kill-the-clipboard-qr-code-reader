@@ -6,6 +6,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
@@ -30,4 +31,5 @@ ${src}
 `;
 
 writeFileSync(outPath, content, 'utf-8');
+execSync('npx oxfmt public/js/sanitize.js', { cwd: root, stdio: 'inherit' });
 console.log('Generated public/js/sanitize.js');

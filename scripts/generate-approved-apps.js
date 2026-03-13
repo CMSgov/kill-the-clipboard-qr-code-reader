@@ -6,6 +6,7 @@
 import { writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 import { APPROVED_APPS, KNOWN_SHL_MANIFEST_HOSTS } from '../data/approved-apps.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -27,4 +28,5 @@ const content = `/**
 `;
 
 writeFileSync(outPath, content, 'utf-8');
+execSync('npx oxfmt public/js/approved-apps.js', { cwd: root, stdio: 'inherit' });
 console.log('Generated public/js/approved-apps.js');

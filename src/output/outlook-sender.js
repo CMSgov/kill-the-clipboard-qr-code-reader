@@ -170,7 +170,7 @@ export async function sendViaOutlook(results, outlookConfig, options = {}) {
         contentType: 'Text',
         content: bodyContent,
       },
-      toRecipients: to.split(',').map(addr => ({
+      toRecipients: to.split(',').map((addr) => ({
         emailAddress: { address: addr.trim() },
       })),
       attachments,

@@ -2,12 +2,7 @@
  * Unit tests for crypto (encryptToken, decryptToken, isEncrypted, ensureEncrypted). No PHI.
  */
 import { describe, it, expect, beforeAll } from 'vitest';
-import {
-  encryptToken,
-  decryptToken,
-  isEncrypted,
-  ensureEncrypted,
-} from '../crypto.js';
+import { encryptToken, decryptToken, isEncrypted, ensureEncrypted } from '../crypto.js';
 
 const ORG_ID = 'test-org-id-123';
 

@@ -121,17 +121,17 @@ The system is designed to **structurally eliminate** threat categories rather th
 
 ### Technology Stack
 
-| Component | Technology | Version | Runs In |
-|-----------|-----------|---------|---------|
-| Runtime | Node.js | 22.x | Server |
-| Web Framework | Express | 5.x | Server |
-| Database | SQLite (better-sqlite3) | Embedded | Server |
-| JWE Decryption | jose (UMD browser build) | 5.x | **Browser** |
-| DEFLATE Decompression | pako | 2.x | **Browser** |
-| QR Code Scanning | html5-qrcode | 2.3 | **Browser** |
-| Password Hashing | bcryptjs | 3.x | Server |
-| Google APIs | googleapis | 171.x | Server |
-| Email (SMTP) | nodemailer | 8.x | Server |
+| Component             | Technology               | Version  | Runs In     |
+| --------------------- | ------------------------ | -------- | ----------- |
+| Runtime               | Node.js                  | 22.x     | Server      |
+| Web Framework         | Express                  | 5.x      | Server      |
+| Database              | SQLite (better-sqlite3)  | Embedded | Server      |
+| JWE Decryption        | jose (UMD browser build) | 5.x      | **Browser** |
+| DEFLATE Decompression | pako                     | 2.x      | **Browser** |
+| QR Code Scanning      | html5-qrcode             | 2.3      | **Browser** |
+| Password Hashing      | bcryptjs                 | 3.x      | Server      |
+| Google APIs           | googleapis               | 171.x    | Server      |
+| Email (SMTP)          | nodemailer               | 8.x      | Server      |
 
 **QR decoding:** Browser scanner pages use **html5-qrcode** for live camera capture and decoding. **jsQR** is used on the server and in the CLI to decode QR codes from image files and PDFs (e.g. the `shl-scan` command and image/PDF input pipelines); it does not handle camera or DOM.
 
@@ -177,16 +177,16 @@ Step 6: Cleanup
 
 ### Data Flow Diagram — What Touches What
 
-| Data Element | Browser | Server (CORS Proxy) | Server (Route Endpoint) | Server Disk/DB | Destination |
-|---|---|---|---|---|---|
-| QR code image | ✅ Captured | ❌ | ❌ | ❌ | ❌ |
-| SHL URI / key | ✅ Decoded | ❌ Never | ❌ Never | ❌ | ❌ |
-| Encrypted JWE | ✅ Received | ✅ Pass-through | ❌ | ❌ | ❌ |
-| Decrypted FHIR data | ✅ Decrypted | ❌ Never | ✅ Transient routing | ❌ | ✅ Delivered |
-| Decrypted PDFs | ✅ Decrypted | ❌ Never | ✅ Transient routing | ❌ | ✅ Delivered |
-| Org configuration | ❌ | ❌ | ✅ | ✅ Persisted | ❌ |
-| OAuth tokens | ❌ | ❌ | ✅ | ✅ Persisted | ❌ |
-| Password hashes | ❌ | ❌ | ✅ | ✅ Persisted | ❌ |
+| Data Element        | Browser      | Server (CORS Proxy) | Server (Route Endpoint) | Server Disk/DB | Destination  |
+| ------------------- | ------------ | ------------------- | ----------------------- | -------------- | ------------ |
+| QR code image       | ✅ Captured  | ❌                  | ❌                      | ❌             | ❌           |
+| SHL URI / key       | ✅ Decoded   | ❌ Never            | ❌ Never                | ❌             | ❌           |
+| Encrypted JWE       | ✅ Received  | ✅ Pass-through     | ❌                      | ❌             | ❌           |
+| Decrypted FHIR data | ✅ Decrypted | ❌ Never            | ✅ Transient routing    | ❌             | ✅ Delivered |
+| Decrypted PDFs      | ✅ Decrypted | ❌ Never            | ✅ Transient routing    | ❌             | ✅ Delivered |
+| Org configuration   | ❌           | ❌                  | ✅                      | ✅ Persisted   | ❌           |
+| OAuth tokens        | ❌           | ❌                  | ✅                      | ✅ Persisted   | ❌           |
+| Password hashes     | ❌           | ❌                  | ✅                      | ✅ Persisted   | ❌           |
 
 **Key distinction:** The CORS proxy only handles encrypted blobs — it cannot access, read, or log the health data because it never has the decryption key. The route endpoint receives already-decrypted data solely for delivery purposes and does not persist it.
 
@@ -196,13 +196,13 @@ Step 6: Cleanup
 
 ### Data Categories
 
-| Category | Examples | Classification | Storage | Retention |
-|----------|---------|---------------|---------|-----------|
-| Patient Health Data | FHIR Bundles, PDFs, demographics | **PHI** | In-memory only | Duration of HTTP request (~seconds) |
-| SHL Encryption Keys | AES-256 key from QR code | **Sensitive Cryptographic Material** | In-memory only | Duration of HTTP request |
-| Organization Credentials | Admin/staff password hashes | **Sensitive** | SQLite database | Until org deletion |
-| OAuth Refresh Tokens | Google, Microsoft, Box tokens | **Sensitive** | SQLite database (encrypted with per-org AES-256-GCM key) | Until disconnected or org deletion |
-| Organization Settings | Name, slug, storage config | **Internal** | SQLite database | Until org deletion |
+| Category                 | Examples                         | Classification                       | Storage                                                  | Retention                           |
+| ------------------------ | -------------------------------- | ------------------------------------ | -------------------------------------------------------- | ----------------------------------- |
+| Patient Health Data      | FHIR Bundles, PDFs, demographics | **PHI**                              | In-memory only                                           | Duration of HTTP request (~seconds) |
+| SHL Encryption Keys      | AES-256 key from QR code         | **Sensitive Cryptographic Material** | In-memory only                                           | Duration of HTTP request            |
+| Organization Credentials | Admin/staff password hashes      | **Sensitive**                        | SQLite database                                          | Until org deletion                  |
+| OAuth Refresh Tokens     | Google, Microsoft, Box tokens    | **Sensitive**                        | SQLite database (encrypted with per-org AES-256-GCM key) | Until disconnected or org deletion  |
+| Organization Settings    | Name, slug, storage config       | **Internal**                         | SQLite database                                          | Until org deletion                  |
 
 ### PHI Handling Principles
 
@@ -221,10 +221,10 @@ Step 6: Cleanup
 
 Each organization has two independent authentication levels:
 
-| Role | Access | Default Timeout | Purpose |
-|------|--------|----------------|---------|
-| **Admin** | Organization settings, integrations, password management | 24 hours | IT administrator or office manager |
-| **Staff** | QR code scanner only | Configurable (1h / 4h / 8h / 12h / 24h) | Front-desk or clinical staff |
+| Role      | Access                                                   | Default Timeout                         | Purpose                            |
+| --------- | -------------------------------------------------------- | --------------------------------------- | ---------------------------------- |
+| **Admin** | Organization settings, integrations, password management | 24 hours                                | IT administrator or office manager |
+| **Staff** | QR code scanner only                                     | Configurable (1h / 4h / 8h / 12h / 24h) | Front-desk or clinical staff       |
 
 ### Password Security
 
@@ -280,13 +280,13 @@ Kill the Clipboard uses **custom HMAC-SHA256–signed session tokens** rather th
 
 ### Data in Transit
 
-| Connection | Protocol | Enforcement |
-|-----------|----------|-------------|
-| Browser ↔ Application Server | HTTPS (TLS 1.2+) | Enforced by Fly.io edge proxy; `force_https = true` |
-| Application Server ↔ SHL Server | HTTPS | Standard Node.js `fetch` with TLS verification |
-| Application Server ↔ Google APIs | HTTPS | Required by Google API client libraries |
-| Application Server ↔ Microsoft Graph | HTTPS | Required by Microsoft API endpoints |
-| Application Server ↔ Box API | HTTPS | Required by Box API endpoints |
+| Connection                           | Protocol         | Enforcement                                         |
+| ------------------------------------ | ---------------- | --------------------------------------------------- |
+| Browser ↔ Application Server         | HTTPS (TLS 1.2+) | Enforced by Fly.io edge proxy; `force_https = true` |
+| Application Server ↔ SHL Server      | HTTPS            | Standard Node.js `fetch` with TLS verification      |
+| Application Server ↔ Google APIs     | HTTPS            | Required by Google API client libraries             |
+| Application Server ↔ Microsoft Graph | HTTPS            | Required by Microsoft API endpoints                 |
+| Application Server ↔ Box API         | HTTPS            | Required by Box API endpoints                       |
 
 ### Data at Rest (Health Records)
 
@@ -294,28 +294,29 @@ Health records are **not stored at rest** on the server. They exist only transie
 
 ### Data at Rest (Configuration)
 
-| Data | Protection |
-|------|-----------|
-| Passwords | bcrypt hashed (cost factor 10) |
+| Data                 | Protection                                                                                                                                                      |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Passwords            | bcrypt hashed (cost factor 10)                                                                                                                                  |
 | OAuth refresh tokens | Encrypted at rest with per-organization AES-256-GCM keys (derived from `HMAC-SHA256(SESSION_SECRET, orgId)`). Database also resides on encrypted Fly.io volume. |
-| Session signing key | Environment variable, not stored in code or database |
-| Database file | Resides on Fly.io persistent volume with filesystem-level access controls |
+| Session signing key  | Environment variable, not stored in code or database                                                                                                            |
+| Database file        | Resides on Fly.io persistent volume with filesystem-level access controls                                                                                       |
 
 ### Cryptographic Operations
 
-| Operation | Algorithm | Library | Purpose |
-|-----------|-----------|---------|---------|
-| SHL payload decryption | AES-256-GCM (JWE) | jose | Decrypt patient health data |
-| JWE key management | Direct (`dir`) | jose | Unwrap content encryption key |
-| Password hashing | bcrypt (cost 10) | bcryptjs | Hash admin and staff passwords |
-| Session token signing | HMAC-SHA256 | Node.js `crypto` | Sign/verify authentication tokens |
-| OAuth token encryption | AES-256-GCM | Node.js `crypto` | Encrypt OAuth refresh tokens at rest with per-org derived keys |
-| Per-org key derivation | HMAC-SHA256 | Node.js `crypto` | Derive per-organization encryption keys from SESSION_SECRET |
-| SHC JWS decoding | Base64url + DEFLATE | Node.js `zlib` | Decode SMART Health Card payloads |
+| Operation              | Algorithm           | Library          | Purpose                                                        |
+| ---------------------- | ------------------- | ---------------- | -------------------------------------------------------------- |
+| SHL payload decryption | AES-256-GCM (JWE)   | jose             | Decrypt patient health data                                    |
+| JWE key management     | Direct (`dir`)      | jose             | Unwrap content encryption key                                  |
+| Password hashing       | bcrypt (cost 10)    | bcryptjs         | Hash admin and staff passwords                                 |
+| Session token signing  | HMAC-SHA256         | Node.js `crypto` | Sign/verify authentication tokens                              |
+| OAuth token encryption | AES-256-GCM         | Node.js `crypto` | Encrypt OAuth refresh tokens at rest with per-org derived keys |
+| Per-org key derivation | HMAC-SHA256         | Node.js `crypto` | Derive per-organization encryption keys from SESSION_SECRET    |
+| SHC JWS decoding       | Base64url + DEFLATE | Node.js `zlib`   | Decode SMART Health Card payloads                              |
 
 ### Algorithm Restrictions
 
 The JWE decryptor explicitly restricts accepted algorithms:
+
 - Content encryption: `A256GCM` only
 - Key management: `dir` (direct) only
 - This prevents algorithm confusion/downgrade attacks
@@ -334,15 +335,15 @@ The JWE decryptor explicitly restricts accepted algorithms:
 
 ### Outbound Traffic
 
-| Destination | Purpose | Protocol |
-|-------------|---------|----------|
-| SHL manifest servers (varies) | Fetch encrypted health data | HTTPS |
-| accounts.google.com | OAuth 2.0 flows (Drive, Gmail) | HTTPS |
-| login.microsoftonline.com | OAuth 2.0 flows (OneDrive, Outlook) | HTTPS |
-| account.box.com | OAuth 2.0 flow (Box) | HTTPS |
-| www.googleapis.com | Drive file upload, Gmail send | HTTPS |
-| graph.microsoft.com | OneDrive upload, Outlook send | HTTPS |
-| api.box.com | Box file upload | HTTPS |
+| Destination                   | Purpose                             | Protocol |
+| ----------------------------- | ----------------------------------- | -------- |
+| SHL manifest servers (varies) | Fetch encrypted health data         | HTTPS    |
+| accounts.google.com           | OAuth 2.0 flows (Drive, Gmail)      | HTTPS    |
+| login.microsoftonline.com     | OAuth 2.0 flows (OneDrive, Outlook) | HTTPS    |
+| account.box.com               | OAuth 2.0 flow (Box)                | HTTPS    |
+| www.googleapis.com            | Drive file upload, Gmail send       | HTTPS    |
+| graph.microsoft.com           | OneDrive upload, Outlook send       | HTTPS    |
+| api.box.com                   | Box file upload                     | HTTPS    |
 
 ### CORS Proxy Security
 
@@ -372,12 +373,12 @@ HTTP security headers are set on all responses to mitigate XSS and injection att
 
 All CDN-hosted scripts include `integrity` attributes with SHA-384 hashes and `crossorigin="anonymous"`. This ensures that if a CDN is compromised or a script is tampered with in transit, the browser will refuse to execute it. Covered libraries:
 
-| Library | Version | Source |
-|---------|---------|--------|
-| html5-qrcode | 2.3.8 | unpkg.com |
-| jose | 5.9.6 | cdnjs.cloudflare.com |
-| pako | 2.1.0 | unpkg.com |
-| qrcode | 1.4.4 | cdn.jsdelivr.net |
+| Library      | Version | Source               |
+| ------------ | ------- | -------------------- |
+| html5-qrcode | 2.3.8   | unpkg.com            |
+| jose         | 5.9.6   | cdnjs.cloudflare.com |
+| pako         | 2.1.0   | unpkg.com            |
+| qrcode       | 1.4.4   | cdn.jsdelivr.net     |
 
 ### XSS Prevention
 
@@ -393,6 +394,7 @@ All external data rendered via `innerHTML` is sanitized through an `escapeHtml()
 Download buttons use `data-*` attributes and event listeners instead of inline `onclick` handlers with interpolated filenames, preventing attribute injection.
 
 Additional input validation:
+
 - **Base64 validation (`isSafeBase64`):** Validates that base64 data contains only `[A-Za-z0-9+/=\s]` before embedding in `<embed src="data:...">` tags, preventing attribute breakout
 - **URL protocol validation (`isSafeUrl`):** Validates `https:` protocol only before rendering URLs as `href` values, preventing `javascript:` and `data:` URI injection
 - **Server-side HTML escaping:** OAuth callback error pages escape `err.message`, `orgSlug`, and `userEmail` via server-side `escapeHtml()` to prevent reflected XSS
@@ -408,12 +410,12 @@ Additional input validation:
 
 Rate limiting protects against brute-force attacks and abuse using `express-rate-limit`:
 
-| Endpoint | Limit | Window | Purpose |
-|----------|-------|--------|---------|
-| `/api/orgs/:slug/auth` | 20 attempts | 15 minutes | Prevents password brute-force (especially important given 6-character minimum for staff passwords; admin requires 8) |
-| `/api/orgs/:slug/shl-proxy` | 30 requests | 1 minute | Prevents proxy abuse |
-| `/api/orgs` (registration) | 5 requests | 1 hour | Prevents registration spam |
-| Super-admin endpoints | 20 attempts | 15 minutes | Protects admin API key |
+| Endpoint                    | Limit       | Window     | Purpose                                                                                                              |
+| --------------------------- | ----------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| `/api/orgs/:slug/auth`      | 20 attempts | 15 minutes | Prevents password brute-force (especially important given 6-character minimum for staff passwords; admin requires 8) |
+| `/api/orgs/:slug/shl-proxy` | 30 requests | 1 minute   | Prevents proxy abuse                                                                                                 |
+| `/api/orgs` (registration)  | 5 requests  | 1 hour     | Prevents registration spam                                                                                           |
+| Super-admin endpoints       | 20 attempts | 15 minutes | Protects admin API key                                                                                               |
 
 Rate limit headers (`RateLimit-*`) are returned in responses per RFC 6585.
 
@@ -437,18 +439,18 @@ All security-sensitive string comparisons use `crypto.timingSafeEqual()` to prev
 
 Every scan/route operation is logged to an `audit_log` table with metadata only (no PHI):
 
-| Field | Description |
-|-------|-------------|
-| `org_slug` | Organization identifier |
-| `event_type` | Type of event (e.g., `scan_route`) |
-| `storage_type` | Destination (drive, onedrive, box, gmail, outlook, api, download) |
-| `fhir_bundle_count` | Number of FHIR bundles processed |
-| `pdf_count` | Number of PDFs processed |
-| `success` | Whether the operation succeeded |
-| `error_message` | Error details if failed |
-| `ip_address` | Client IP address |
-| `user_agent` | Client user agent string |
-| `created_at` | Timestamp |
+| Field               | Description                                                       |
+| ------------------- | ----------------------------------------------------------------- |
+| `org_slug`          | Organization identifier                                           |
+| `event_type`        | Type of event (e.g., `scan_route`)                                |
+| `storage_type`      | Destination (drive, onedrive, box, gmail, outlook, api, download) |
+| `fhir_bundle_count` | Number of FHIR bundles processed                                  |
+| `pdf_count`         | Number of PDFs processed                                          |
+| `success`           | Whether the operation succeeded                                   |
+| `error_message`     | Error details if failed                                           |
+| `ip_address`        | Client IP address                                                 |
+| `user_agent`        | Client user agent string                                          |
+| `created_at`        | Timestamp                                                         |
 
 Audit logs are accessible via admin API endpoints and can be used for compliance reporting, incident investigation, and usage analytics.
 
@@ -458,15 +460,15 @@ Audit logs are accessible via admin API endpoints and can be used for compliance
 
 ### Hosting
 
-| Parameter | Value |
-|-----------|-------|
-| Platform | Fly.io (PaaS) |
-| Region | `iad` (US-East, Ashburn, Virginia) |
-| Instance type | Shared CPU, 1 GB RAM |
-| Operating system | Debian (node:22-slim container) |
-| Minimum instances | 1 (auto-scale) |
-| HTTPS enforcement | Yes, at edge |
-| Data residency | United States |
+| Parameter         | Value                              |
+| ----------------- | ---------------------------------- |
+| Platform          | Fly.io (PaaS)                      |
+| Region            | `iad` (US-East, Ashburn, Virginia) |
+| Instance type     | Shared CPU, 1 GB RAM               |
+| Operating system  | Debian (node:22-slim container)    |
+| Minimum instances | 1 (auto-scale)                     |
+| HTTPS enforcement | Yes, at edge                       |
+| Data residency    | United States                      |
 
 ### Persistent Storage
 
@@ -491,20 +493,20 @@ Kill the Clipboard can also be self-hosted as a single-tenant instance. The appl
 
 All sensitive configuration is stored as Fly.io secrets (encrypted at rest, injected at runtime). Required for production (see also production-readiness §4.1, §9.3):
 
-| Variable | Purpose | Required |
-|----------|---------|----------|
-| `ADMIN_KEY` | Super-admin dashboard password; protects `/admin` (org list, approvals, password resets). | Yes |
-| `DATABASE_PATH` | Path to the SQLite database file (e.g. `/data/db.sqlite`). | Yes |
-| `PORT` | HTTP port the server listens on (e.g. `3000`). | Yes |
-| `SESSION_SECRET` | HMAC key for session token signing and per-org OAuth token encryption key derivation. Required in production; do not use random per-process fallback. | Yes |
-| `GOOGLE_CLIENT_ID` | Google OAuth client identifier (Drive, Gmail). | If using Google |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret. | If using Google |
-| `ONEDRIVE_CLIENT_ID` | Microsoft OAuth client identifier (OneDrive, Outlook). | If using Microsoft |
-| `ONEDRIVE_CLIENT_SECRET` | Microsoft OAuth client secret. | If using Microsoft |
-| `BOX_CLIENT_ID` | Box OAuth client identifier. | If using Box |
-| `BOX_CLIENT_SECRET` | Box OAuth client secret. | If using Box |
-| `PUBLIC_URL` | Application public URL for OAuth callbacks (e.g. `https://your-domain.com`). | If using OAuth |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | SMTP settings for Email destination and approval notifications. | If using Email destination |
+| Variable                                                        | Purpose                                                                                                                                               | Required                   |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `ADMIN_KEY`                                                     | Super-admin dashboard password; protects `/admin` (org list, approvals, password resets).                                                             | Yes                        |
+| `DATABASE_PATH`                                                 | Path to the SQLite database file (e.g. `/data/db.sqlite`).                                                                                            | Yes                        |
+| `PORT`                                                          | HTTP port the server listens on (e.g. `3000`).                                                                                                        | Yes                        |
+| `SESSION_SECRET`                                                | HMAC key for session token signing and per-org OAuth token encryption key derivation. Required in production; do not use random per-process fallback. | Yes                        |
+| `GOOGLE_CLIENT_ID`                                              | Google OAuth client identifier (Drive, Gmail).                                                                                                        | If using Google            |
+| `GOOGLE_CLIENT_SECRET`                                          | Google OAuth client secret.                                                                                                                           | If using Google            |
+| `ONEDRIVE_CLIENT_ID`                                            | Microsoft OAuth client identifier (OneDrive, Outlook).                                                                                                | If using Microsoft         |
+| `ONEDRIVE_CLIENT_SECRET`                                        | Microsoft OAuth client secret.                                                                                                                        | If using Microsoft         |
+| `BOX_CLIENT_ID`                                                 | Box OAuth client identifier.                                                                                                                          | If using Box               |
+| `BOX_CLIENT_SECRET`                                             | Box OAuth client secret.                                                                                                                              | If using Box               |
+| `PUBLIC_URL`                                                    | Application public URL for OAuth callbacks (e.g. `https://your-domain.com`).                                                                          | If using OAuth             |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | SMTP settings for Email destination and approval notifications.                                                                                       | If using Email destination |
 
 ---
 
@@ -514,13 +516,13 @@ All sensitive configuration is stored as Fly.io secrets (encrypted at rest, inje
 
 Each integration uses the OAuth 2.0 Authorization Code flow with the minimum required scopes:
 
-| Service | OAuth Provider | Scopes Requested | Data Access |
-|---------|---------------|------------------|-------------|
-| Google Drive | Google | `drive.file` | Create files/folders in authorized folder only |
-| Gmail | Google | `gmail.send` | Send email only — no read/modify/delete access |
-| OneDrive | Microsoft | `Files.ReadWrite.All`, `offline_access` | Create files/folders |
-| Outlook | Microsoft | `Mail.Send`, `offline_access` | Send email only — no read/modify/delete access |
-| Box | Box | `root_readwrite` | Upload files to specified folder |
+| Service      | OAuth Provider | Scopes Requested                        | Data Access                                    |
+| ------------ | -------------- | --------------------------------------- | ---------------------------------------------- |
+| Google Drive | Google         | `drive.file`                            | Create files/folders in authorized folder only |
+| Gmail        | Google         | `gmail.send`                            | Send email only — no read/modify/delete access |
+| OneDrive     | Microsoft      | `Files.ReadWrite.All`, `offline_access` | Create files/folders                           |
+| Outlook      | Microsoft      | `Mail.Send`, `offline_access`           | Send email only — no read/modify/delete access |
+| Box          | Box            | `root_readwrite`                        | Upload files to specified folder               |
 
 ### Token Lifecycle
 
@@ -569,33 +571,33 @@ This aligns with the SMART Health Cards cryptographic model and NIST-approved al
 
 ### How Kill the Clipboard Supports HIPAA-Compliant Workflows
 
-| HIPAA Requirement | How Kill the Clipboard Addresses It |
-|---|---|
-| **Minimum Necessary** | Only processes data contained in the patient-presented QR code; does not access any additional records |
-| **Access Controls** | Dual-password authentication; role-based access (admin vs. staff); configurable session timeouts |
-| **Encryption in Transit** | All connections use HTTPS/TLS |
-| **Encryption at Rest** | Health data is not stored at rest; OAuth tokens encrypted at rest with per-org AES-256-GCM keys; database on encrypted infrastructure |
-| **Audit Controls** | Each scan/route operation is logged to `audit_log` table with non-PHI metadata (timestamp, org, storage type, record counts, success/failure, IP, user agent). Admin and super-admin API endpoints for log review. OAuth token usage auditable via third-party provider logs. |
-| **Integrity** | FHIR data validated for structural integrity; AES-256-GCM provides authenticated encryption (tamper detection) |
-| **Automatic Logoff** | Configurable session timeouts (1h / 4h / 8h / 12h / 24h) |
-| **Unique User Identification** | Organizations identified by unique slug; admin and staff roles separated |
+| HIPAA Requirement              | How Kill the Clipboard Addresses It                                                                                                                                                                                                                                           |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Minimum Necessary**          | Only processes data contained in the patient-presented QR code; does not access any additional records                                                                                                                                                                        |
+| **Access Controls**            | Dual-password authentication; role-based access (admin vs. staff); configurable session timeouts                                                                                                                                                                              |
+| **Encryption in Transit**      | All connections use HTTPS/TLS                                                                                                                                                                                                                                                 |
+| **Encryption at Rest**         | Health data is not stored at rest; OAuth tokens encrypted at rest with per-org AES-256-GCM keys; database on encrypted infrastructure                                                                                                                                         |
+| **Audit Controls**             | Each scan/route operation is logged to `audit_log` table with non-PHI metadata (timestamp, org, storage type, record counts, success/failure, IP, user agent). Admin and super-admin API endpoints for log review. OAuth token usage auditable via third-party provider logs. |
+| **Integrity**                  | FHIR data validated for structural integrity; AES-256-GCM provides authenticated encryption (tamper detection)                                                                                                                                                                |
+| **Automatic Logoff**           | Configurable session timeouts (1h / 4h / 8h / 12h / 24h)                                                                                                                                                                                                                      |
+| **Unique User Identification** | Organizations identified by unique slug; admin and staff roles separated                                                                                                                                                                                                      |
 
 ### Shared Responsibility
 
 Kill the Clipboard is designed as a **data routing tool**, not a data storage system. HIPAA compliance is a shared responsibility:
 
-| Responsibility | Owner |
-|---|---|
-| Health data transient processing security | Kill the Clipboard |
-| HTTPS enforcement and network security | Kill the Clipboard + Fly.io |
-| Authentication and session management | Kill the Clipboard |
-| Multi-tenant data isolation | Kill the Clipboard |
-| Business Associate Agreement with cloud storage provider | Subscribing organization |
-| Email account HIPAA compliance (e.g., Google Workspace HIPAA BAA) | Subscribing organization |
-| Staff training on scanner use | Subscribing organization |
-| Physical security of scanning devices | Subscribing organization |
-| Destination system access controls | Subscribing organization |
-| API endpoint security (for webhook destinations) | Subscribing organization |
+| Responsibility                                                    | Owner                       |
+| ----------------------------------------------------------------- | --------------------------- |
+| Health data transient processing security                         | Kill the Clipboard          |
+| HTTPS enforcement and network security                            | Kill the Clipboard + Fly.io |
+| Authentication and session management                             | Kill the Clipboard          |
+| Multi-tenant data isolation                                       | Kill the Clipboard          |
+| Business Associate Agreement with cloud storage provider          | Subscribing organization    |
+| Email account HIPAA compliance (e.g., Google Workspace HIPAA BAA) | Subscribing organization    |
+| Staff training on scanner use                                     | Subscribing organization    |
+| Physical security of scanning devices                             | Subscribing organization    |
+| Destination system access controls                                | Subscribing organization    |
+| API endpoint security (for webhook destinations)                  | Subscribing organization    |
 
 ### Business Associate Agreement (BAA) Considerations
 
@@ -611,18 +613,18 @@ Kill the Clipboard is designed as a **data routing tool**, not a data storage sy
 
 ### Standards Implemented
 
-| Standard | Usage |
-|----------|-------|
-| **SMART Health Links (SHL)** | Core protocol for QR code-based health data exchange |
-| **FHIR R4** | Health data format for extracted clinical records |
-| **SMART Health Cards (SHC)** | JWS-encoded verifiable health documents within SHL payloads |
-| **JWE (RFC 7516)** | Compact serialization encryption for SHL data payloads |
-| **JWS (RFC 7515)** | Signed tokens in SMART Health Cards and app attestation (Phase 3) |
-| **OAuth 2.0 (RFC 6749)** | Authorization for all third-party service integrations |
-| **AES-256-GCM (NIST SP 800-38D)** | Content encryption algorithm for JWE payloads |
-| **ES256 / P-256 (FIPS 186-4)** | Signature algorithm for Phase 3 app attestation |
-| **bcrypt** | Password hashing (adaptive cost function) |
-| **HMAC-SHA256 (RFC 2104)** | Session token authentication |
+| Standard                          | Usage                                                             |
+| --------------------------------- | ----------------------------------------------------------------- |
+| **SMART Health Links (SHL)**      | Core protocol for QR code-based health data exchange              |
+| **FHIR R4**                       | Health data format for extracted clinical records                 |
+| **SMART Health Cards (SHC)**      | JWS-encoded verifiable health documents within SHL payloads       |
+| **JWE (RFC 7516)**                | Compact serialization encryption for SHL data payloads            |
+| **JWS (RFC 7515)**                | Signed tokens in SMART Health Cards and app attestation (Phase 3) |
+| **OAuth 2.0 (RFC 6749)**          | Authorization for all third-party service integrations            |
+| **AES-256-GCM (NIST SP 800-38D)** | Content encryption algorithm for JWE payloads                     |
+| **ES256 / P-256 (FIPS 186-4)**    | Signature algorithm for Phase 3 app attestation                   |
+| **bcrypt**                        | Password hashing (adaptive cost function)                         |
+| **HMAC-SHA256 (RFC 2104)**        | Session token authentication                                      |
 
 ### CMS Kill the Clipboard Program Alignment
 
@@ -637,18 +639,18 @@ Kill the Clipboard is designed as a **data routing tool**, not a data storage sy
 
 All production dependencies are well-established, actively maintained open-source libraries:
 
-| Package | Purpose | Weekly Downloads | License |
-|---------|---------|-----------------|---------|
-| express | Web server framework | ~34M | MIT |
-| better-sqlite3 | Embedded database | ~1.2M | MIT |
-| jose | JWE/JWS cryptography | ~9M | MIT |
-| bcryptjs | Password hashing | ~2.5M | MIT |
-| googleapis | Google Drive/Gmail API | ~3M | Apache-2.0 |
-| sharp | Image processing for QR decode | ~5M | Apache-2.0 |
-| jsqr | QR code decoding | ~600K | Apache-2.0 |
-| nodemailer | SMTP email sending | ~3M | MIT |
-| uuid | Unique identifier generation | ~60M | MIT |
-| commander | CLI argument parsing | ~100M | MIT |
+| Package        | Purpose                        | Weekly Downloads | License    |
+| -------------- | ------------------------------ | ---------------- | ---------- |
+| express        | Web server framework           | ~34M             | MIT        |
+| better-sqlite3 | Embedded database              | ~1.2M            | MIT        |
+| jose           | JWE/JWS cryptography           | ~9M              | MIT        |
+| bcryptjs       | Password hashing               | ~2.5M            | MIT        |
+| googleapis     | Google Drive/Gmail API         | ~3M              | Apache-2.0 |
+| sharp          | Image processing for QR decode | ~5M              | Apache-2.0 |
+| jsqr           | QR code decoding               | ~600K            | Apache-2.0 |
+| nodemailer     | SMTP email sending             | ~3M              | MIT        |
+| uuid           | Unique identifier generation   | ~60M             | MIT        |
+| commander      | CLI argument parsing           | ~100M            | MIT        |
 
 **No dependencies with known critical vulnerabilities** at time of writing.
 
@@ -656,19 +658,19 @@ All production dependencies are well-established, actively maintained open-sourc
 
 ## 15. Risk Assessment & Mitigations
 
-| Risk | Severity | Likelihood | Mitigation |
-|------|----------|-----------|------------|
-| **PHI exposure via server compromise** | High | Very Low | PHI decryption occurs in the browser, not on the server. The server's CORS proxy only handles encrypted JWE blobs and never possesses the decryption key. The route endpoint receives decrypted data transiently for delivery only — a server compromise would require intercepting an active routing operation. |
-| **OAuth token theft** | Medium | Very Low | Tokens encrypted at rest with per-organization AES-256-GCM keys derived from `HMAC-SHA256(SESSION_SECRET, orgId)`. A database leak alone does not expose usable tokens. Each token scoped to one organization. Revocable by admin at any time. |
-| **Session token forgery** | Medium | Very Low | HMAC-SHA256 signed with cryptographically random secret. Token expiration enforced server-side. Timing-safe comparison prevents side-channel attacks. |
-| **Password brute force** | Medium | Low | bcrypt with cost factor 10 makes brute force computationally expensive (~100ms per attempt). Rate limiting (20 attempts per 15 minutes per IP) prevents automated attacks. |
-| **QR code spoofing (app identity)** | Low | Medium | Phase 1 uses static list (spoofable). Phase 3 roadmap adds cryptographic attestation with JWS signatures. |
-| **SQL injection** | High | Very Low | All database queries use parameterized statements. Column names validated against allowlist. |
-| **Cross-tenant data access** | High | Very Low | Token-based slug verification on every request. Staff tokens cannot access other organizations' data. |
-| **Decompression bomb (zip bomb via JWE)** | Medium | Low | 5 MB maximum decompression limit enforced on all inflate operations. |
-| **SSRF via malicious SHL URL** | Medium | Very Low | CORS proxy validates all URLs against SSRF blocklist (RFC 1918, RFC 4193, localhost, link-local, cloud metadata, IPv6-mapped addresses). Redirects validated before following (max 3). Rate limited to 30 requests/minute per IP. |
-| **OAuth CSRF (storage hijack)** | High | Very Low | OAuth state parameters are HMAC-signed with `SESSION_SECRET`. Callback verifies signature using timing-safe comparison before trusting the state payload. Forged state is silently rejected. |
-| **XSS via SHL content** | Medium | Very Low | All external data HTML-sanitized via `escapeHtml()` before `innerHTML` rendering. CSP restricts script sources. CDN scripts verified via SRI hashes. `connect-src 'self'` blocks data exfiltration. Poisoned QR code attack vector eliminated. |
+| Risk                                      | Severity | Likelihood | Mitigation                                                                                                                                                                                                                                                                                                       |
+| ----------------------------------------- | -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PHI exposure via server compromise**    | High     | Very Low   | PHI decryption occurs in the browser, not on the server. The server's CORS proxy only handles encrypted JWE blobs and never possesses the decryption key. The route endpoint receives decrypted data transiently for delivery only — a server compromise would require intercepting an active routing operation. |
+| **OAuth token theft**                     | Medium   | Very Low   | Tokens encrypted at rest with per-organization AES-256-GCM keys derived from `HMAC-SHA256(SESSION_SECRET, orgId)`. A database leak alone does not expose usable tokens. Each token scoped to one organization. Revocable by admin at any time.                                                                   |
+| **Session token forgery**                 | Medium   | Very Low   | HMAC-SHA256 signed with cryptographically random secret. Token expiration enforced server-side. Timing-safe comparison prevents side-channel attacks.                                                                                                                                                            |
+| **Password brute force**                  | Medium   | Low        | bcrypt with cost factor 10 makes brute force computationally expensive (~100ms per attempt). Rate limiting (20 attempts per 15 minutes per IP) prevents automated attacks.                                                                                                                                       |
+| **QR code spoofing (app identity)**       | Low      | Medium     | Phase 1 uses static list (spoofable). Phase 3 roadmap adds cryptographic attestation with JWS signatures.                                                                                                                                                                                                        |
+| **SQL injection**                         | High     | Very Low   | All database queries use parameterized statements. Column names validated against allowlist.                                                                                                                                                                                                                     |
+| **Cross-tenant data access**              | High     | Very Low   | Token-based slug verification on every request. Staff tokens cannot access other organizations' data.                                                                                                                                                                                                            |
+| **Decompression bomb (zip bomb via JWE)** | Medium   | Low        | 5 MB maximum decompression limit enforced on all inflate operations.                                                                                                                                                                                                                                             |
+| **SSRF via malicious SHL URL**            | Medium   | Very Low   | CORS proxy validates all URLs against SSRF blocklist (RFC 1918, RFC 4193, localhost, link-local, cloud metadata, IPv6-mapped addresses). Redirects validated before following (max 3). Rate limited to 30 requests/minute per IP.                                                                                |
+| **OAuth CSRF (storage hijack)**           | High     | Very Low   | OAuth state parameters are HMAC-signed with `SESSION_SECRET`. Callback verifies signature using timing-safe comparison before trusting the state payload. Forged state is silently rejected.                                                                                                                     |
+| **XSS via SHL content**                   | Medium   | Very Low   | All external data HTML-sanitized via `escapeHtml()` before `innerHTML` rendering. CSP restricts script sources. CDN scripts verified via SRI hashes. `connect-src 'self'` blocks data exfiltration. Poisoned QR code attack vector eliminated.                                                                   |
 
 ---
 
@@ -775,4 +777,4 @@ A: Yes. The project is open source and available at [github.com/CMSgov/kill-the-
 
 ---
 
-*This document is intended for CISO and compliance team review. For technical implementation details, see the project's [GitHub repository](https://github.com/CMSgov/kill-the-clipboard-qr-code-reader). For privacy policy, see [killtheclipboard.fly.dev/privacy](https://killtheclipboard.fly.dev/privacy).*
+_This document is intended for CISO and compliance team review. For technical implementation details, see the project's [GitHub repository](https://github.com/CMSgov/kill-the-clipboard-qr-code-reader). For privacy policy, see [killtheclipboard.fly.dev/privacy](https://killtheclipboard.fly.dev/privacy)._

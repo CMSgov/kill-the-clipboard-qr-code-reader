@@ -13,17 +13,52 @@ import { writeToFiles } from './src/output/file-writer.js';
 import { postToApi } from './src/output/api-poster.js';
 import { uploadToDrive, getOAuth2Client, parseFolderId } from './src/output/drive-uploader.js';
 import { sendEmail } from './src/output/email-sender.js';
-import { uploadToOnedrive, getOnedriveAuthUrl, exchangeOnedriveCode } from './src/output/onedrive-uploader.js';
+import {
+  uploadToOnedrive,
+  getOnedriveAuthUrl,
+  exchangeOnedriveCode,
+} from './src/output/onedrive-uploader.js';
 import { uploadToBox, getBoxAuthUrl, exchangeBoxCode } from './src/output/box-uploader.js';
-import { sendViaGmail, getGmailAuthUrl, exchangeGmailCode, getGmailUserEmail } from './src/output/gmail-sender.js';
-import { sendViaOutlook, getOutlookMailAuthUrl, exchangeOutlookMailCode, getOutlookUserEmail } from './src/output/outlook-sender.js';
-import { initDb, getDb, createOrg, getOrgBySlug, getOrgById, updateOrgSettings, slugExists, listAllOrgs, deleteOrgById, countOrgs, createApprovalRequest, listApprovalRequests, updateApprovalRequest, getDecryptedToken, prepareTokenForStorage, logAuditEvent, listAuditLog, listAllAuditLog } from './src/db.js';
+import {
+  sendViaGmail,
+  getGmailAuthUrl,
+  exchangeGmailCode,
+  getGmailUserEmail,
+} from './src/output/gmail-sender.js';
+import {
+  sendViaOutlook,
+  getOutlookMailAuthUrl,
+  exchangeOutlookMailCode,
+  getOutlookUserEmail,
+} from './src/output/outlook-sender.js';
+import {
+  initDb,
+  getDb,
+  createOrg,
+  getOrgBySlug,
+  getOrgById,
+  updateOrgSettings,
+  slugExists,
+  listAllOrgs,
+  deleteOrgById,
+  countOrgs,
+  createApprovalRequest,
+  listApprovalRequests,
+  updateApprovalRequest,
+  getDecryptedToken,
+  prepareTokenForStorage,
+  logAuditEvent,
+  listAuditLog,
+  listAllAuditLog,
+} from './src/db.js';
 import { hashPassword, verifyPassword, createToken, authMiddleware } from './src/auth.js';
 import { readFileSync } from 'node:fs';
 import rateLimit from 'express-rate-limit';
 
 // Load version from package.json at startup
-const pkg = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'package.json'), 'utf-8'));
+const pkg = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'package.json'), 'utf-8'),
+);
 const APP_VERSION = pkg.version;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -33,7 +68,22 @@ const config = loadConfig();
 const PORT = process.env.PORT || config.server?.port || 3000;
 const HOST = process.env.HOST || config.server?.host || '0.0.0.0';
 
-const RESERVED_SLUGS = ['register', 'admin', 'api', 'auth', 'public', 'static', 'assets', 'health', 'index.html', 'privacy', 'terms', 'super-admin', 'setup-guide', 'test-qr-codes'];
+const RESERVED_SLUGS = [
+  'register',
+  'admin',
+  'api',
+  'auth',
+  'public',
+  'static',
+  'assets',
+  'health',
+  'index.html',
+  'privacy',
+  'terms',
+  'super-admin',
+  'setup-guide',
+  'test-qr-codes',
+];
 
 app.use(express.json({ limit: '10mb' }));
 
@@ -80,15 +130,15 @@ function verifyOAuthState(stateString) {
 // Protect auth endpoints against brute-force and proxy endpoints against abuse.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,                    // 20 attempts per window per IP
+  max: 20, // 20 attempts per window per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many authentication attempts. Please try again later.' },
 });
 
 const proxyLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000,  // 1 minute
-  max: 30,                    // 30 requests per minute per IP
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 30, // 30 requests per minute per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please slow down.' },
@@ -96,7 +146,7 @@ const proxyLimiter = rateLimit({
 
 const registrationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5,                    // 5 registrations per hour per IP
+  max: 5, // 5 registrations per hour per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many registration attempts. Please try again later.' },
@@ -107,18 +157,21 @@ const registrationLimiter = rateLimit({
 // CDN scripts are pinned to specific versions and verified via Subresource Integrity (SRI) hashes.
 // Note: 'unsafe-inline' is required for onclick handlers in HTML; all innerHTML uses escapeHtml().
 app.use((req, res, next) => {
-  res.setHeader('Content-Security-Policy', [
-    "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
-    "img-src 'self' data: blob:",
-    "connect-src 'self'",
-    "media-src 'self' blob:",
-    "frame-src 'self' blob: data:",
-    "object-src 'none'",
-    "base-uri 'self'",
-  ].join('; '));
+  res.setHeader(
+    'Content-Security-Policy',
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: blob:",
+      "connect-src 'self'",
+      "media-src 'self' blob:",
+      "frame-src 'self' blob: data:",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join('; '),
+  );
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -183,7 +236,10 @@ app.post('/api/scan', async (req, res) => {
   }
 
   if (!shlPayload) {
-    return res.json({ status: 'not_shl', message: 'QR code does not contain a SMART Health Link.' });
+    return res.json({
+      status: 'not_shl',
+      message: 'QR code does not contain a SMART Health Link.',
+    });
   }
 
   if (shlPayload.flag.includes('P') && !passcode && !config.passcode) {
@@ -234,7 +290,9 @@ app.post('/api/scan', async (req, res) => {
     if (['drive', 'all'].includes(config.output.mode)) {
       if (config.output.drive.folderId) {
         try {
-          const driveSummary = await uploadToDrive(results, config.output.drive, { verbose: false });
+          const driveSummary = await uploadToDrive(results, config.output.drive, {
+            verbose: false,
+          });
           driveLink = driveSummary.driveFolder;
         } catch (err) {
           driveError = err.message;
@@ -287,7 +345,9 @@ app.get('/api/config', (req, res) => {
 app.get('/auth/google', (req, res) => {
   const oauth2 = getOAuth2Client(config);
   if (!oauth2) {
-    return res.status(500).send('Google OAuth2 not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.');
+    return res
+      .status(500)
+      .send('Google OAuth2 not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.');
   }
 
   const authUrl = oauth2.generateAuthUrl({
@@ -317,7 +377,10 @@ app.get('/auth/google/callback', async (req, res) => {
   let orgId = null;
   if (state) {
     const verified = verifyOAuthState(state);
-    if (verified) { orgSlug = verified.slug; orgId = verified.orgId; }
+    if (verified) {
+      orgSlug = verified.slug;
+      orgId = verified.orgId;
+    }
   }
 
   try {
@@ -339,7 +402,10 @@ app.get('/auth/google/callback', async (req, res) => {
 
     // Per-org flow: save refresh token to database (encrypted at rest)
     if (orgSlug && orgId) {
-      updateOrgSettings(orgId, { drive_refresh_token: prepareTokenForStorage(refreshToken, orgId), storage_type: 'drive' });
+      updateOrgSettings(orgId, {
+        drive_refresh_token: prepareTokenForStorage(refreshToken, orgId),
+        storage_type: 'drive',
+      });
 
       return res.send(`
         <html><body style="font-family: Inter, sans-serif; max-width: 600px; margin: 40px auto; padding: 20px;">
@@ -400,7 +466,7 @@ app.get('/api/verify-app', (req, res) => {
   const { appId } = req.query;
   if (!appId) return res.status(400).json({ error: 'appId is required' });
 
-  const app = APPROVED_APPS.find(a => a.appId === appId.toLowerCase());
+  const app = APPROVED_APPS.find((a) => a.appId === appId.toLowerCase());
   if (app) {
     res.json({ approved: true, app });
   } else {
@@ -421,7 +487,10 @@ app.post('/api/orgs', registrationLimiter, async (req, res) => {
   }
 
   if (!/^[a-z][a-z0-9-]{2,49}$/.test(slug)) {
-    return res.status(400).json({ error: 'Slug must be 3-50 characters, lowercase letters/numbers/hyphens, starting with a letter.' });
+    return res.status(400).json({
+      error:
+        'Slug must be 3-50 characters, lowercase letters/numbers/hyphens, starting with a letter.',
+    });
   }
 
   if (RESERVED_SLUGS.includes(slug)) {
@@ -547,10 +616,26 @@ app.put('/api/orgs/:slug/settings', authMiddleware('admin'), (req, res) => {
   const org = getOrgBySlug(req.params.slug);
   if (!org) return res.status(404).json({ error: 'Organization not found.' });
 
-  const { storageType, saveFormat, driveFolderId, apiUrl, apiHeaders, emailTo, onedriveFolderPath, boxFolderId, requireAppValidation, sessionTimeoutMinutes } = req.body;
+  const {
+    storageType,
+    saveFormat,
+    driveFolderId,
+    apiUrl,
+    apiHeaders,
+    emailTo,
+    onedriveFolderPath,
+    boxFolderId,
+    requireAppValidation,
+    sessionTimeoutMinutes,
+  } = req.body;
   const updates = {};
 
-  if (storageType && ['download', 'drive', 'onedrive', 'box', 'api', 'email', 'gmail', 'outlook'].includes(storageType)) {
+  if (
+    storageType &&
+    ['download', 'drive', 'onedrive', 'box', 'api', 'email', 'gmail', 'outlook'].includes(
+      storageType,
+    )
+  ) {
     updates.storage_type = storageType;
   }
   if (saveFormat && ['pdf', 'fhir', 'both'].includes(saveFormat)) {
@@ -562,7 +647,8 @@ app.put('/api/orgs/:slug/settings', authMiddleware('admin'), (req, res) => {
   if (apiUrl !== undefined) updates.api_url = apiUrl;
   if (apiHeaders !== undefined) updates.api_headers = JSON.stringify(apiHeaders);
   if (emailTo !== undefined) updates.email_to = emailTo;
-  if (requireAppValidation !== undefined) updates.require_app_validation = requireAppValidation ? 1 : 0;
+  if (requireAppValidation !== undefined)
+    updates.require_app_validation = requireAppValidation ? 1 : 0;
   if (sessionTimeoutMinutes !== undefined) {
     const validTimeouts = [60, 240, 480, 720, 1440];
     const val = parseInt(sessionTimeoutMinutes);
@@ -585,11 +671,13 @@ app.put('/api/orgs/:slug/passwords', authMiddleware('admin'), async (req, res) =
 
   const updates = {};
   if (newAdminPassword) {
-    if (newAdminPassword.length < 8) return res.status(400).json({ error: 'Admin password must be at least 8 characters.' });
+    if (newAdminPassword.length < 8)
+      return res.status(400).json({ error: 'Admin password must be at least 8 characters.' });
     updates.admin_password_hash = await hashPassword(newAdminPassword);
   }
   if (newStaffPassword) {
-    if (newStaffPassword.length < 4) return res.status(400).json({ error: 'Staff password must be at least 4 characters.' });
+    if (newStaffPassword.length < 4)
+      return res.status(400).json({ error: 'Staff password must be at least 4 characters.' });
     updates.staff_password_hash = await hashPassword(newStaffPassword);
   }
 
@@ -611,13 +699,16 @@ app.post('/api/orgs/:slug/test-connection', authMiddleware('admin'), async (req,
   try {
     if (storageType === 'drive' || storageType === 'google_drive') {
       if (!org.drive_refresh_token) {
-        return res.json({ ok: false, error: 'Google Drive not connected. Please connect your Drive account first.' });
+        return res.json({
+          ok: false,
+          error: 'Google Drive not connected. Please connect your Drive account first.',
+        });
       }
       // Test Drive access by listing files in the folder
       const { google } = await import('googleapis');
       const oauth2 = new google.auth.OAuth2(
         config.output.drive.clientId,
-        config.output.drive.clientSecret
+        config.output.drive.clientSecret,
       );
       oauth2.setCredentials({ refresh_token: getDecryptedToken(org, 'drive_refresh_token') });
       const drive = google.drive({ version: 'v3', auth: oauth2 });
@@ -645,7 +736,11 @@ app.post('/api/orgs/:slug/test-connection', authMiddleware('admin'), async (req,
       const testResp = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...headers },
-        body: JSON.stringify({ test: true, source: 'kill-the-clipboard', timestamp: new Date().toISOString() }),
+        body: JSON.stringify({
+          test: true,
+          source: 'kill-the-clipboard',
+          timestamp: new Date().toISOString(),
+        }),
         signal: AbortSignal.timeout(10000),
       });
 
@@ -658,7 +753,8 @@ app.post('/api/orgs/:slug/test-connection', authMiddleware('admin'), async (req,
 
     if (storageType === 'email') {
       if (!org.email_to) return res.json({ ok: false, error: 'No email recipient configured.' });
-      if (!process.env.SMTP_HOST) return res.json({ ok: false, error: 'SMTP not configured by system administrator.' });
+      if (!process.env.SMTP_HOST)
+        return res.json({ ok: false, error: 'SMTP not configured by system administrator.' });
 
       // Test SMTP connection
       const nodemailer = await import('nodemailer');
@@ -678,7 +774,10 @@ app.post('/api/orgs/:slug/test-connection', authMiddleware('admin'), async (req,
 
     if (storageType === 'gmail') {
       if (!org.gmail_refresh_token) {
-        return res.json({ ok: false, error: 'Gmail not connected. Please connect your Gmail account first.' });
+        return res.json({
+          ok: false,
+          error: 'Gmail not connected. Please connect your Gmail account first.',
+        });
       }
       if (!org.email_to) {
         return res.json({ ok: false, error: 'No email recipient configured.' });
@@ -706,7 +805,10 @@ app.post('/api/orgs/:slug/test-connection', authMiddleware('admin'), async (req,
 
     if (storageType === 'outlook') {
       if (!org.outlook_refresh_token) {
-        return res.json({ ok: false, error: 'Outlook not connected. Please connect your Microsoft account first.' });
+        return res.json({
+          ok: false,
+          error: 'Outlook not connected. Please connect your Microsoft account first.',
+        });
       }
       if (!org.email_to) {
         return res.json({ ok: false, error: 'No email recipient configured.' });
@@ -735,12 +837,13 @@ app.post('/api/orgs/:slug/test-connection', authMiddleware('admin'), async (req,
 
     if (storageType === 'onedrive') {
       if (!org.onedrive_refresh_token) {
-        return res.json({ ok: false, error: 'OneDrive not connected. Please connect your OneDrive account first.' });
+        return res.json({
+          ok: false,
+          error: 'OneDrive not connected. Please connect your OneDrive account first.',
+        });
       }
-      // Test by getting user's drive info
+      // Test by refreshing token (verifies the refresh token is valid)
       try {
-        const { uploadToOnedrive: _unused, ...mod } = await import('./src/output/onedrive-uploader.js');
-        // Simple test: try to get access token (which verifies the refresh token)
         const testResp = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -764,7 +867,10 @@ app.post('/api/orgs/:slug/test-connection', authMiddleware('admin'), async (req,
 
     if (storageType === 'box') {
       if (!org.box_refresh_token) {
-        return res.json({ ok: false, error: 'Box not connected. Please connect your Box account first.' });
+        return res.json({
+          ok: false,
+          error: 'Box not connected. Please connect your Box account first.',
+        });
       }
       if (!org.box_folder_id) {
         return res.json({ ok: false, error: 'No Box folder ID configured.' });
@@ -787,7 +893,9 @@ app.post('/api/orgs/:slug/test-connection', authMiddleware('admin'), async (req,
         const tokens = await testResp.json();
         // Save new refresh token (Box rotates them on every use — encrypt before storing)
         if (tokens.refresh_token) {
-          updateOrgSettings(org.id, { box_refresh_token: prepareTokenForStorage(tokens.refresh_token, org.id) });
+          updateOrgSettings(org.id, {
+            box_refresh_token: prepareTokenForStorage(tokens.refresh_token, org.id),
+          });
         }
         // Verify folder access
         const folderResp = await fetch(`https://api.box.com/2.0/folders/${org.box_folder_id}`, {
@@ -796,7 +904,10 @@ app.post('/api/orgs/:slug/test-connection', authMiddleware('admin'), async (req,
         if (folderResp.ok) {
           return res.json({ ok: true, message: 'Box connected and folder accessible.' });
         } else {
-          return res.json({ ok: false, error: `Box folder "${org.box_folder_id}" not found. Use "0" for root folder, or enter a valid folder ID from your Box URL.` });
+          return res.json({
+            ok: false,
+            error: `Box folder "${org.box_folder_id}" not found. Use "0" for root folder, or enter a valid folder ID from your Box URL.`,
+          });
         }
       } catch (err) {
         return res.json({ ok: false, error: err.message });
@@ -819,7 +930,8 @@ app.get('/api/orgs/:slug/drive-connect', (req, res) => {
   if (!org) return res.status(404).send('Organization not found.');
 
   const oauth2 = getOAuth2Client(config);
-  if (!oauth2) return res.status(500).send('Google OAuth2 not configured. Contact the system administrator.');
+  if (!oauth2)
+    return res.status(500).send('Google OAuth2 not configured. Contact the system administrator.');
 
   const authUrl = oauth2.generateAuthUrl({
     access_type: 'offline',
@@ -841,7 +953,8 @@ app.get('/api/orgs/:slug/onedrive-connect', (req, res) => {
   const state = createSignedOAuthState(org.slug, org.id);
 
   const authUrl = getOnedriveAuthUrl(redirectUri, state);
-  if (!authUrl) return res.status(500).send('OneDrive not configured. Set ONEDRIVE_CLIENT_ID env var.');
+  if (!authUrl)
+    return res.status(500).send('OneDrive not configured. Set ONEDRIVE_CLIENT_ID env var.');
 
   res.redirect(authUrl);
 });
@@ -851,10 +964,14 @@ app.get('/auth/onedrive/callback', async (req, res) => {
   const { code, state } = req.query;
   if (!code) return res.status(400).send('No authorization code received.');
 
-  let orgSlug = null, orgId = null;
+  let orgSlug = null,
+    orgId = null;
   if (state) {
     const verified = verifyOAuthState(state);
-    if (verified) { orgSlug = verified.slug; orgId = verified.orgId; }
+    if (verified) {
+      orgSlug = verified.slug;
+      orgId = verified.orgId;
+    }
   }
 
   try {
@@ -863,7 +980,10 @@ app.get('/auth/onedrive/callback', async (req, res) => {
     const tokens = await exchangeOnedriveCode(code, redirectUri);
 
     if (orgId && tokens.refresh_token) {
-      updateOrgSettings(orgId, { onedrive_refresh_token: prepareTokenForStorage(tokens.refresh_token, orgId), storage_type: 'onedrive' });
+      updateOrgSettings(orgId, {
+        onedrive_refresh_token: prepareTokenForStorage(tokens.refresh_token, orgId),
+        storage_type: 'onedrive',
+      });
     }
 
     const backUrl = orgSlug ? `/${orgSlug}/admin` : '/';
@@ -906,10 +1026,14 @@ app.get('/auth/box/callback', async (req, res) => {
   const { code, state } = req.query;
   if (!code) return res.status(400).send('No authorization code received.');
 
-  let orgSlug = null, orgId = null;
+  let orgSlug = null,
+    orgId = null;
   if (state) {
     const verified = verifyOAuthState(state);
-    if (verified) { orgSlug = verified.slug; orgId = verified.orgId; }
+    if (verified) {
+      orgSlug = verified.slug;
+      orgId = verified.orgId;
+    }
   }
 
   try {
@@ -918,7 +1042,10 @@ app.get('/auth/box/callback', async (req, res) => {
     const tokens = await exchangeBoxCode(code, redirectUri);
 
     if (orgId && tokens.refresh_token) {
-      updateOrgSettings(orgId, { box_refresh_token: prepareTokenForStorage(tokens.refresh_token, orgId), storage_type: 'box' });
+      updateOrgSettings(orgId, {
+        box_refresh_token: prepareTokenForStorage(tokens.refresh_token, orgId),
+        storage_type: 'box',
+      });
     }
 
     const backUrl = orgSlug ? `/${orgSlug}/admin` : '/';
@@ -951,7 +1078,8 @@ app.get('/api/orgs/:slug/gmail-connect', (req, res) => {
   const state = createSignedOAuthState(org.slug, org.id);
 
   const authUrl = getGmailAuthUrl(redirectUri, state);
-  if (!authUrl) return res.status(500).send('Google OAuth not configured. Set GOOGLE_CLIENT_ID env var.');
+  if (!authUrl)
+    return res.status(500).send('Google OAuth not configured. Set GOOGLE_CLIENT_ID env var.');
 
   res.redirect(authUrl);
 });
@@ -961,10 +1089,14 @@ app.get('/auth/gmail/callback', async (req, res) => {
   const { code, state } = req.query;
   if (!code) return res.status(400).send('No authorization code received.');
 
-  let orgSlug = null, orgId = null;
+  let orgSlug = null,
+    orgId = null;
   if (state) {
     const verified = verifyOAuthState(state);
-    if (verified) { orgSlug = verified.slug; orgId = verified.orgId; }
+    if (verified) {
+      orgSlug = verified.slug;
+      orgId = verified.orgId;
+    }
   }
 
   try {
@@ -992,7 +1124,10 @@ app.get('/auth/gmail/callback', async (req, res) => {
     }
 
     if (orgId) {
-      const updates = { gmail_refresh_token: prepareTokenForStorage(tokens.refresh_token, orgId), storage_type: 'gmail' };
+      const updates = {
+        gmail_refresh_token: prepareTokenForStorage(tokens.refresh_token, orgId),
+        storage_type: 'gmail',
+      };
       if (userEmail) updates.gmail_email = userEmail;
       updateOrgSettings(orgId, updates);
     }
@@ -1027,7 +1162,8 @@ app.get('/api/orgs/:slug/outlook-connect', (req, res) => {
   const state = createSignedOAuthState(org.slug, org.id);
 
   const authUrl = getOutlookMailAuthUrl(redirectUri, state);
-  if (!authUrl) return res.status(500).send('Microsoft OAuth not configured. Set ONEDRIVE_CLIENT_ID env var.');
+  if (!authUrl)
+    return res.status(500).send('Microsoft OAuth not configured. Set ONEDRIVE_CLIENT_ID env var.');
 
   res.redirect(authUrl);
 });
@@ -1037,10 +1173,14 @@ app.get('/auth/outlook/callback', async (req, res) => {
   const { code, state } = req.query;
   if (!code) return res.status(400).send('No authorization code received.');
 
-  let orgSlug = null, orgId = null;
+  let orgSlug = null,
+    orgId = null;
   if (state) {
     const verified = verifyOAuthState(state);
-    if (verified) { orgSlug = verified.slug; orgId = verified.orgId; }
+    if (verified) {
+      orgSlug = verified.slug;
+      orgId = verified.orgId;
+    }
   }
 
   try {
@@ -1055,7 +1195,10 @@ app.get('/auth/outlook/callback', async (req, res) => {
     }
 
     if (orgId && tokens.refresh_token) {
-      const updates = { outlook_refresh_token: prepareTokenForStorage(tokens.refresh_token, orgId), storage_type: 'outlook' };
+      const updates = {
+        outlook_refresh_token: prepareTokenForStorage(tokens.refresh_token, orgId),
+        storage_type: 'outlook',
+      };
       if (userEmail) updates.outlook_email = userEmail;
       updateOrgSettings(orgId, updates);
     }
@@ -1115,9 +1258,9 @@ function isPrivateUrl(urlString) {
     }
 
     // Block IPv6 private ranges
-    if (hostname.startsWith('fe80:')) return true;   // Link-local
+    if (hostname.startsWith('fe80:')) return true; // Link-local
     if (hostname.startsWith('fc') || hostname.startsWith('fd')) return true; // Unique local
-    if (hostname === '::') return true;               // Unspecified
+    if (hostname === '::') return true; // Unspecified
 
     // Block RFC 1918 ranges (IPv4)
     if (isPrivateIpv4(hostname)) return true;
@@ -1130,13 +1273,13 @@ function isPrivateUrl(urlString) {
 
 function isPrivateIpv4(hostname) {
   const parts = hostname.split('.');
-  if (parts.length !== 4 || !parts.every(p => /^\d+$/.test(p))) return false;
+  if (parts.length !== 4 || !parts.every((p) => /^\d+$/.test(p))) return false;
   const [a, b] = parts.map(Number);
-  if (a === 10) return true;                          // 10.0.0.0/8
-  if (a === 172 && b >= 16 && b <= 31) return true;  // 172.16.0.0/12
-  if (a === 192 && b === 168) return true;            // 192.168.0.0/16
-  if (a === 169 && b === 254) return true;            // 169.254.0.0/16 (link-local)
-  if (a === 127) return true;                          // 127.0.0.0/8 (loopback)
+  if (a === 10) return true; // 10.0.0.0/8
+  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
+  if (a === 192 && b === 168) return true; // 192.168.0.0/16
+  if (a === 169 && b === 254) return true; // 169.254.0.0/16 (link-local)
+  if (a === 127) return true; // 127.0.0.0/8 (loopback)
   return false;
 }
 
@@ -1149,7 +1292,9 @@ async function handleShlProxyRequest(req, res) {
   }
 
   if (isPrivateUrl(url)) {
-    return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
+    return res
+      .status(403)
+      .json({ error: 'Requests to private/internal addresses are not allowed' });
   }
 
   try {
@@ -1248,11 +1393,14 @@ app.post('/api/orgs/:slug/route', authMiddleware('staff'), async (req, res) => {
   const saveFormat = org.save_format || 'both';
   const filteredResults = {
     fhirBundles: saveFormat === 'pdf' ? [] : fhirBundles,
-    pdfs: saveFormat === 'fhir' ? [] : pdfs.map(p => ({
-      filename: p.filename,
-      data: p.dataBase64 ? Buffer.from(p.dataBase64, 'base64') : null,
-      url: p.url || null,
-    })),
+    pdfs:
+      saveFormat === 'fhir'
+        ? []
+        : pdfs.map((p) => ({
+            filename: p.filename,
+            data: p.dataBase64 ? Buffer.from(p.dataBase64, 'base64') : null,
+            url: p.url || null,
+          })),
     raw: [],
   };
 
@@ -1320,10 +1468,14 @@ app.post('/api/orgs/:slug/route', authMiddleware('staff'), async (req, res) => {
 
   if (org.storage_type === 'gmail' && org.gmail_refresh_token && org.email_to) {
     try {
-      await sendViaGmail(filteredResults, {
-        refreshToken: getDecryptedToken(org, 'gmail_refresh_token'),
-        to: org.email_to,
-      }, { verbose: false });
+      await sendViaGmail(
+        filteredResults,
+        {
+          refreshToken: getDecryptedToken(org, 'gmail_refresh_token'),
+          to: org.email_to,
+        },
+        { verbose: false },
+      );
       emailSent = true;
     } catch (err) {
       emailError = err.message;
@@ -1333,10 +1485,14 @@ app.post('/api/orgs/:slug/route', authMiddleware('staff'), async (req, res) => {
 
   if (org.storage_type === 'outlook' && org.outlook_refresh_token && org.email_to) {
     try {
-      await sendViaOutlook(filteredResults, {
-        refreshToken: getDecryptedToken(org, 'outlook_refresh_token'),
-        to: org.email_to,
-      }, { verbose: false });
+      await sendViaOutlook(
+        filteredResults,
+        {
+          refreshToken: getDecryptedToken(org, 'outlook_refresh_token'),
+          to: org.email_to,
+        },
+        { verbose: false },
+      );
       emailSent = true;
     } catch (err) {
       emailError = err.message;
@@ -1367,7 +1523,9 @@ app.post('/api/orgs/:slug/route', authMiddleware('staff'), async (req, res) => {
       const boxSummary = await uploadToBox(filteredResults, boxConfig, { verbose: false });
       boxLink = boxSummary.folderLink;
       if (boxSummary.newRefreshToken) {
-        updateOrgSettings(org.id, { box_refresh_token: prepareTokenForStorage(boxSummary.newRefreshToken, org.id) });
+        updateOrgSettings(org.id, {
+          box_refresh_token: prepareTokenForStorage(boxSummary.newRefreshToken, org.id),
+        });
       }
     } catch (err) {
       boxError = err.message;
@@ -1410,7 +1568,7 @@ app.post('/api/orgs/:slug/route', authMiddleware('staff'), async (req, res) => {
       rawEntries: 0,
     },
     fhirBundles: filteredResults.fhirBundles,
-    pdfs: pdfs.map(p => ({
+    pdfs: pdfs.map((p) => ({
       filename: p.filename,
       hasData: !!p.dataBase64,
       dataBase64: p.dataBase64 || null,
@@ -1435,7 +1593,10 @@ app.post('/api/orgs/:slug/scan', authMiddleware('staff'), async (req, res) => {
   }
 
   if (!shlPayload) {
-    return res.json({ status: 'not_shl', message: 'QR code does not contain a SMART Health Link.' });
+    return res.json({
+      status: 'not_shl',
+      message: 'QR code does not contain a SMART Health Link.',
+    });
   }
 
   if (shlPayload.flag.includes('P') && !passcode) {
@@ -1545,10 +1706,14 @@ app.post('/api/orgs/:slug/scan', authMiddleware('staff'), async (req, res) => {
 
     if (org.storage_type === 'gmail' && org.gmail_refresh_token && org.email_to) {
       try {
-        await sendViaGmail(filteredResults, {
-          refreshToken: getDecryptedToken(org, 'gmail_refresh_token'),
-          to: org.email_to,
-        }, { verbose: false });
+        await sendViaGmail(
+          filteredResults,
+          {
+            refreshToken: getDecryptedToken(org, 'gmail_refresh_token'),
+            to: org.email_to,
+          },
+          { verbose: false },
+        );
         emailSent = true;
       } catch (err) {
         emailError = err.message;
@@ -1558,10 +1723,14 @@ app.post('/api/orgs/:slug/scan', authMiddleware('staff'), async (req, res) => {
 
     if (org.storage_type === 'outlook' && org.outlook_refresh_token && org.email_to) {
       try {
-        await sendViaOutlook(filteredResults, {
-          refreshToken: getDecryptedToken(org, 'outlook_refresh_token'),
-          to: org.email_to,
-        }, { verbose: false });
+        await sendViaOutlook(
+          filteredResults,
+          {
+            refreshToken: getDecryptedToken(org, 'outlook_refresh_token'),
+            to: org.email_to,
+          },
+          { verbose: false },
+        );
         emailSent = true;
       } catch (err) {
         emailError = err.message;
@@ -1593,7 +1762,9 @@ app.post('/api/orgs/:slug/scan', authMiddleware('staff'), async (req, res) => {
         boxLink = boxSummary.folderLink;
         // Box rotates refresh tokens — save the new one (encrypted)
         if (boxSummary.newRefreshToken) {
-          updateOrgSettings(org.id, { box_refresh_token: prepareTokenForStorage(boxSummary.newRefreshToken, org.id) });
+          updateOrgSettings(org.id, {
+            box_refresh_token: prepareTokenForStorage(boxSummary.newRefreshToken, org.id),
+          });
         }
       } catch (err) {
         boxError = err.message;
@@ -1653,8 +1824,12 @@ async function notifyAdminNewRequest({ orgName, orgSlug, email, service }) {
     const smtpFrom = process.env.SMTP_FROM;
 
     if (!smtpHost || !smtpUser || !smtpPass) {
-      console.log(`[Approval] New request from ${orgName} (${email}) for ${service} — no SMTP configured, skipping email notification.`);
-      console.log(`[Approval] To enable notifications, set SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM env vars.`);
+      console.log(
+        `[Approval] New request from ${orgName} (${email}) for ${service} — no SMTP configured, skipping email notification.`,
+      );
+      console.log(
+        `[Approval] To enable notifications, set SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_FROM env vars.`,
+      );
       return;
     }
 
@@ -1710,13 +1885,19 @@ app.post('/api/orgs/:slug/request-approval', authMiddleware('admin'), (req, res)
   });
 
   if (result.alreadyExists) {
-    return res.json({ success: true, message: 'Your request has already been submitted and is awaiting approval.' });
+    return res.json({
+      success: true,
+      message: 'Your request has already been submitted and is awaiting approval.',
+    });
   }
 
   // Fire-and-forget: send admin notification email
   notifyAdminNewRequest({ orgName: org.name, orgSlug: org.slug, email, service });
 
-  res.json({ success: true, message: 'Your request has been submitted. You will be notified when your account is approved.' });
+  res.json({
+    success: true,
+    message: 'Your request has been submitted. You will be notified when your account is approved.',
+  });
 });
 
 // Check approval status for a given email + service
@@ -1727,9 +1908,11 @@ app.get('/api/orgs/:slug/approval-status', authMiddleware('admin'), (req, res) =
   const { email, service } = req.query;
   if (!email || !service) return res.json({ status: 'none' });
 
-  const row = getDb().prepare(
-    'SELECT status FROM approval_requests WHERE org_slug = ? AND email = ? AND service = ? ORDER BY created_at DESC LIMIT 1'
-  ).get(org.slug, email, service);
+  const row = getDb()
+    .prepare(
+      'SELECT status FROM approval_requests WHERE org_slug = ? AND email = ? AND service = ? ORDER BY created_at DESC LIMIT 1',
+    )
+    .get(org.slug, email, service);
 
   res.json({ status: row ? row.status : 'none' });
 });
@@ -1806,11 +1989,13 @@ app.post('/api/admin/orgs/:id/reset-password', superAdminAuth, async (req, res) 
   const updates = {};
 
   if (adminPassword) {
-    if (adminPassword.length < 8) return res.status(400).json({ error: 'Admin password must be at least 8 characters' });
+    if (adminPassword.length < 8)
+      return res.status(400).json({ error: 'Admin password must be at least 8 characters' });
     updates.admin_password_hash = await hashPassword(adminPassword);
   }
   if (staffPassword) {
-    if (staffPassword.length < 4) return res.status(400).json({ error: 'Staff password must be at least 4 characters' });
+    if (staffPassword.length < 4)
+      return res.status(400).json({ error: 'Staff password must be at least 4 characters' });
     updates.staff_password_hash = await hashPassword(staffPassword);
   }
 
@@ -1869,8 +2054,10 @@ app.listen(PORT, HOST, () => {
   console.log(`  Network:  http://${localIp}:${PORT}   <-- use this on your phone\n`);
   console.log(`  Output:   ${config.output.mode} -> ${config.output.directory}`);
   if (config.output.api.url) console.log(`  API:      ${config.output.api.url}`);
-  if (config.output.api.fhirServerBase) console.log(`  FHIR:     ${config.output.api.fhirServerBase}`);
-  if (config.output.drive.folderId) console.log(`  Drive:    folder ${config.output.drive.folderId}`);
+  if (config.output.api.fhirServerBase)
+    console.log(`  FHIR:     ${config.output.api.fhirServerBase}`);
+  if (config.output.drive.folderId)
+    console.log(`  Drive:    folder ${config.output.drive.folderId}`);
   console.log(`  Database: initialized`);
   console.log(`  Multi-tenant: enabled at /:slug\n`);
 });

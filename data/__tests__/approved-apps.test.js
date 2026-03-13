@@ -34,7 +34,7 @@ describe('approved-app list', () => {
   it('generated client file matches source count and structure', () => {
     const clientScript = readFileSync(
       join(__dirname, '..', '..', 'public', 'js', 'approved-apps.js'),
-      'utf-8'
+      'utf-8',
     );
     expect(clientScript).toContain('APPROVED_APPS_CORE');
     expect(clientScript).toContain('KNOWN_SHL_MANIFEST_HOSTS');

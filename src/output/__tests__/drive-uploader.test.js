@@ -8,7 +8,7 @@ describe('parseFolderId', () => {
   it('extracts folder ID from full URL', () => {
     expect(parseFolderId('https://drive.google.com/drive/folders/abc123xyz')).toBe('abc123xyz');
     expect(parseFolderId('https://drive.google.com/drive/folders/MyFolderId_123?usp=sharing')).toBe(
-      'MyFolderId_123'
+      'MyFolderId_123',
     );
   });
 

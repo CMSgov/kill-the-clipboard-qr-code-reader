@@ -173,7 +173,9 @@ export async function uploadToBox(results, boxConfig, options = {}) {
       try {
         const resp = await fetch(pdf.url);
         if (resp.ok) pdfBuffer = Buffer.from(await resp.arrayBuffer());
-      } catch { continue; }
+      } catch {
+        continue;
+      }
     }
 
     if (!pdfBuffer) continue;
@@ -224,7 +226,7 @@ export function getBoxAuthUrl(redirectUri, state) {
 /**
  * Exchange an authorization code for tokens.
  */
-export async function exchangeBoxCode(code, redirectUri) {
+export async function exchangeBoxCode(code) {
   const clientId = process.env.BOX_CLIENT_ID;
   const clientSecret = process.env.BOX_CLIENT_SECRET;
 

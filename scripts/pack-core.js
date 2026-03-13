@@ -14,7 +14,6 @@ const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf-8'));
 const version = pkg.version;
 const distCore = join(root, 'dist', 'core');
 const zipName = `killtheclipboard-core-${version}.zip`;
-const zipPath = join(root, zipName);
 
 if (!existsSync(distCore)) {
   console.error('dist/core/ not found. Run npm run build:core first.');
